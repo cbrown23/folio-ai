@@ -1,65 +1,104 @@
-import Image from "next/image";
+import Nav from '@/components/Nav'
+import Hero from '@/components/Hero'
+import CaseStudies from '@/components/CaseStudies'
+import ChatButton from '@/components/ChatButton'
+import config from '../../folio.config'
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
+    <>
+      <Nav />
+      <main className="flex-1">
+        <Hero />
+        <CaseStudies />
+
+        {/* About stub */}
+        <section id="about" className="py-24 border-t border-slate-800/60">
+          <div className="mx-auto max-w-6xl px-6">
+            <p className="text-sm font-mono text-indigo-400 mb-3 tracking-widest uppercase">
+              Background
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">About</h2>
+            <p className="text-slate-400 max-w-2xl leading-relaxed">
+              Content coming soon. Based in {config.owner.location}.
+            </p>
+          </div>
+        </section>
+
+        {/* How It Works stub */}
+        <section id="how-it-works" className="py-24 border-t border-slate-800/60">
+          <div className="mx-auto max-w-6xl px-6">
+            <p className="text-sm font-mono text-indigo-400 mb-3 tracking-widest uppercase">
+              Under the Hood
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">How This Site Works</h2>
+            <p className="text-slate-400 max-w-2xl leading-relaxed">
+              Architecture walkthrough coming soon — ReAct agent loop, tool definitions, vector
+              store, and system diagram.
+            </p>
+          </div>
+        </section>
+
+        {/* Contact stub */}
+        <section id="contact" className="py-24 border-t border-slate-800/60">
+          <div className="mx-auto max-w-6xl px-6">
+            <p className="text-sm font-mono text-indigo-400 mb-3 tracking-widest uppercase">
+              Get in Touch
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Let&apos;s Talk</h2>
+            <p className="text-slate-400 max-w-xl leading-relaxed mb-8">
+              I&apos;m open to SA and AI architecture roles. Reach out directly or use the chat
+              assistant to schedule time.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <a
+                href={`mailto:${config.owner.email}`}
+                className="px-6 py-3 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
+              >
+                Email Me
+              </a>
+              <a
+                href={config.owner.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 rounded-md border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-medium transition-colors"
+              >
+                LinkedIn
+              </a>
+              <a
+                href={config.owner.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 rounded-md border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-medium transition-colors"
+              >
+                GitHub
+              </a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-slate-800/60 py-8">
+        <div className="mx-auto max-w-6xl px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-slate-500">
+            © {new Date().getFullYear()} {config.owner.name}
+          </p>
+          <p className="text-xs text-slate-600">
+            Built with{' '}
             <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              href="https://github.com/cbrown23/folio-ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-500 hover:text-slate-400 transition-colors"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              folio-ai
+            </a>{' '}
+            — open source template
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+      </footer>
+
+      <ChatButton />
+    </>
+  )
 }
