@@ -27,7 +27,7 @@ const config = {
     // Display name shown to visitors in the chat UI
     assistantName: 'Folio',
     // Brief persona shown as chat placeholder / greeting
-    greeting: 'Hi — I can answer questions about Clint's work, or help you schedule time with him.',
+    greeting: "Hi — I can answer questions about Clint's work, or help you schedule time with him.",
   },
 
   scheduling: {
