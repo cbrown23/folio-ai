@@ -49,63 +49,65 @@ export async function POST(req: NextRequest) {
 
   const encoder = new TextEncoder()
 
+  async function* generateStream() {
+    for (let iter = 0; iter < 5; iter++) {
+      const stream = anthropic.messages.stream({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system,
+        tools,
+        messages,
+      })
+
+      for await (const event of stream) {
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta.type === 'text_delta'
+        ) {
+          yield `data: ${JSON.stringify({ delta: event.delta.text })}\n\n`
+        }
+      }
+
+      const finalMsg = await stream.finalMessage()
+
+      if (finalMsg.stop_reason === 'end_turn') break
+
+      if (finalMsg.stop_reason === 'tool_use') {
+        const toolUses = finalMsg.content.filter(
+          (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+        )
+
+        messages = [
+          ...messages,
+          { role: 'assistant', content: finalMsg.content },
+        ]
+
+        const results: Anthropic.ToolResultBlockParam[] = []
+        for (const t of toolUses) {
+          const result = await executeTool(
+            t.name,
+            t.input as Record<string, unknown>,
+            session,
+          )
+          results.push({ type: 'tool_result', tool_use_id: t.id, content: result })
+        }
+
+        messages = [...messages, { role: 'user', content: results }]
+        continue
+      }
+
+      break
+    }
+
+    yield 'data: [DONE]\n\n'
+  }
+
   const responseStream = new ReadableStream({
     async start(controller) {
       try {
-        for (let iter = 0; iter < 5; iter++) {
-          const apiStream = anthropic.messages.stream({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 512,
-            system,
-            tools,
-            messages,
-          })
-
-          // Stream text deltas in real-time as Claude generates them
-          apiStream.on('text', (text: string) => {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`),
-            )
-          })
-
-          const finalMsg = await apiStream.finalMessage()
-
-          if (finalMsg.stop_reason === 'end_turn') {
-            break
-          }
-
-          if (finalMsg.stop_reason === 'tool_use') {
-            const toolUses = finalMsg.content.filter(
-              (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-            )
-
-            messages = [
-              ...messages,
-              { role: 'assistant', content: finalMsg.content },
-            ]
-
-            const results: Anthropic.ToolResultBlockParam[] = []
-            for (const t of toolUses) {
-              const result = await executeTool(
-                t.name,
-                t.input as Record<string, unknown>,
-                session,
-              )
-              results.push({
-                type: 'tool_result',
-                tool_use_id: t.id,
-                content: result,
-              })
-            }
-
-            messages = [...messages, { role: 'user', content: results }]
-            continue
-          }
-
-          break
+        for await (const chunk of generateStream()) {
+          controller.enqueue(encoder.encode(chunk))
         }
-
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Something went wrong'
         controller.enqueue(
