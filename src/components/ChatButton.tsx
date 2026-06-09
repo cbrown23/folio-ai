@@ -1,101 +1,286 @@
 'use client'
 
 import config from '../../folio.config'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import Image from 'next/image'
 
+type Message = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export default function ChatButton() {
   const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', content: config.agent.greeting },
+  ])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const { data: session } = useSession()
+
+  useEffect(() => {
+    if (open) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, open])
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [open])
+
+  async function sendMessage() {
+    if (!input.trim() || isLoading) return
+    const text = input.trim()
+    setInput('')
+
+    const newMessages: Message[] = [...messages, { role: 'user', content: text }]
+    setMessages(newMessages)
+    setIsLoading(true)
+
+    // Push an empty assistant message — we'll stream into it
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      })
+
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantText = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') break
+
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.delta) {
+              assistantText += parsed.delta
+              setMessages((prev) => {
+                const updated = [...prev]
+                updated[updated.length - 1] = {
+                  role: 'assistant',
+                  content: assistantText,
+                }
+                return updated
+              })
+            }
+            if (parsed.error) {
+              throw new Error(parsed.error)
+            }
+          } catch {
+            // skip malformed SSE lines
+          }
+        }
+      }
+    } catch {
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: 'assistant',
+          content: "Sorry, I'm having trouble connecting right now. Please try again.",
+        }
+        return updated
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
 
   return (
     <>
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-80 rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl flex flex-col overflow-hidden">
+        <div
+          className="fixed bottom-24 right-6 z-50 w-80 sm:w-96 rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl flex flex-col overflow-hidden"
+          style={{ height: '520px' }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/60">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/60 shrink-0">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-sm font-medium text-white">{config.agent.assistantName}</span>
+              <span className="text-sm font-medium text-white">
+                {config.agent.assistantName}
+              </span>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-slate-400 hover:text-white transition-colors"
-              aria-label="Close chat"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 px-4 py-6 flex flex-col items-center justify-center gap-3 text-center min-h-48">
-            <div className="w-10 h-10 rounded-full bg-indigo-900/60 border border-indigo-700 flex items-center justify-center">
-              <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
-            </div>
-
-            {session?.user ? (
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {session?.user && (
+                <div className="flex items-center gap-1.5">
                   {session.user.image && (
                     <Image
                       src={session.user.image}
-                      alt={session.user.name ?? ''}
+                      alt=""
                       width={20}
                       height={20}
                       className="rounded-full"
                     />
                   )}
-                  <p className="text-xs text-slate-400">
-                    Signed in as <span className="text-slate-300">{session.user.name}</span>
-                  </p>
+                  <span className="text-xs text-slate-400">
+                    {session.user.name}
+                  </span>
                 </div>
-                <p className="text-sm text-slate-300 font-medium mt-1">{config.agent.greeting}</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-slate-300 font-medium">{config.agent.greeting}</p>
-                <button
-                  onClick={() => signIn('linkedin', { callbackUrl: window.location.href })}
-                  className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-md border border-slate-700 hover:border-indigo-600 text-slate-400 hover:text-slate-200 transition-colors"
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+                aria-label="Close chat"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <LinkedInIcon className="w-3.5 h-3.5" />
-                  Sign in to schedule or generate a resume
-                </button>
-              </>
-            )}
-
-            <p className="text-xs text-slate-500">Agent coming soon — check back shortly.</p>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {/* Input */}
-          <div className="px-4 py-3 border-t border-slate-700">
-            <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 opacity-50 cursor-not-allowed">
-              <input
-                disabled
-                placeholder="Ask me anything..."
-                className="flex-1 bg-transparent text-sm text-slate-400 placeholder-slate-600 outline-none"
-              />
-              <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                    msg.role === 'user'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-800 text-slate-200 border border-slate-700/50'
+                  }`}
+                >
+                  {msg.content || (
+                    <span className="inline-flex items-center gap-1 py-0.5">
+                      <span
+                        className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce"
+                        style={{ animationDelay: '0ms' }}
+                      />
+                      <span
+                        className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce"
+                        style={{ animationDelay: '150ms' }}
+                      />
+                      <span
+                        className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce"
+                        style={{ animationDelay: '300ms' }}
+                      />
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Footer */}
+          <div className="shrink-0 border-t border-slate-700">
+            {!session?.user && (
+              <div className="px-4 py-2 flex items-center justify-between bg-slate-800/40 border-b border-slate-700/50">
+                <span className="text-xs text-slate-500">
+                  Sign in to schedule meetings
+                </span>
+                <button
+                  onClick={() =>
+                    signIn('linkedin', { callbackUrl: window.location.href })
+                  }
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  <LinkedInIcon className="w-3 h-3" />
+                  Sign in
+                </button>
+              </div>
+            )}
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 focus-within:border-indigo-600 transition-colors">
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask me anything..."
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none disabled:opacity-50"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || isLoading}
+                  className="text-indigo-400 hover:text-indigo-300 disabled:text-slate-600 transition-colors"
+                  aria-label="Send"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Floating trigger */}
+      {/* FAB */}
       <button
         onClick={() => setOpen((o) => !o)}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/40 transition-all hover:scale-105 active:scale-95"
         aria-label="Open chat"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+          />
         </svg>
         <span className="text-sm font-medium">Ask {config.agent.assistantName}</span>
       </button>
