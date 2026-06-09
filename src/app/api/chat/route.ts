@@ -34,14 +34,17 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'rate_limit_exceeded' }, { status: 429 })
   }
 
+  const session = await auth()
+  if (!session?.user) {
+    return Response.json({ error: 'signin_required' }, { status: 401 })
+  }
+
   let body: { messages: Anthropic.MessageParam[] }
   try {
     body = await req.json()
   } catch {
     return Response.json({ error: 'invalid_json' }, { status: 400 })
   }
-
-  const [session] = await Promise.all([auth()])
   const system = buildSystemPrompt()
   // Cap history to keep input tokens bounded; preserves the most recent context
   const MAX_HISTORY = 10

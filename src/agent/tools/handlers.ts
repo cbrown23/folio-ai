@@ -14,15 +14,12 @@ export async function executeTool(
 ): Promise<string> {
   switch (name) {
     case 'schedule_meeting': {
-      if (!session?.user) {
-        return "To generate a booking link I need you to be signed in with LinkedIn — it helps Clint know who he's meeting with. You can sign in using the button in the nav bar, then ask me again and I'll get you a link."
-      }
       const topic = input.topic as string | undefined
       const baseUrl = `https://cal.com/${config.scheduling.calUsername}/${config.scheduling.defaultEventSlug}`
       const url = topic
         ? `${baseUrl}?notes=${encodeURIComponent(topic)}`
         : baseUrl
-      const visitorName = session.user.name ?? 'you'
+      const visitorName = session?.user?.name ?? 'you'
       return `Here's a booking link for ${visitorName}: ${url}\n\nThat'll get you a 30-minute slot with Clint. He'll see your LinkedIn profile when you book.`
     }
 
