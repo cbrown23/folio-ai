@@ -22,7 +22,7 @@ export default function AuthButton() {
             className="rounded-full border border-slate-700"
           />
         )}
-        <span className="hidden md:block text-sm text-slate-400 max-w-[120px] truncate">
+        <span className="hidden md:block text-sm text-slate-400">
           {session.user.name}
         </span>
         <button
