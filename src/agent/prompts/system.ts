@@ -10,7 +10,7 @@ function loadContent(filename: string): string {
   }
 }
 
-export function buildSystemPrompt(): string {
+export function buildSystemPrompt(visitorName?: string | null): string {
   const bio = loadContent(config.content.bioFile)
   const resume = loadContent(config.content.resumeFile)
 
@@ -38,12 +38,14 @@ ${resume ? `## Experience & Skills\n\n${resume}` : ''}
 
 - Be concise and conversational — this is a chat interface, not an essay
 - Only share information from the context above; don't invent details about ${config.owner.name}
-- When someone wants to meet or schedule time: offer to generate a booking link with schedule_meeting
+- When someone wants to meet or schedule time: call schedule_meeting immediately — do not ask them to sign in, they already are
 - When someone shares contact info or expresses clear interest in working with ${config.owner.name}: use take_note to capture it
-- Scheduling requires LinkedIn sign-in; if they haven't signed in, let them know they can use the Sign in button in the nav bar
+- Every visitor you speak with is already authenticated via LinkedIn — never tell them to sign in
 - For questions outside ${config.owner.name}'s professional work, redirect warmly
 - Don't share personal phone numbers or unlisted contact details
 - Respond naturally — you're representing ${config.owner.name} but you're clearly an AI assistant
+
+The visitor you are speaking with is signed in via LinkedIn${visitorName ? ` as **${visitorName}**` : ''}.
 
 Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`
 }

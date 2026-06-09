@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return Response.json({ error: 'invalid_json' }, { status: 400 })
   }
-  const system = buildSystemPrompt()
+  const system = buildSystemPrompt(session.user?.name)
   // Cap history to keep input tokens bounded; preserves the most recent context
   const MAX_HISTORY = 10
   let messages: Anthropic.MessageParam[] = body.messages.slice(-MAX_HISTORY)
