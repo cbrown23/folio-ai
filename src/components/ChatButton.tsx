@@ -76,24 +76,25 @@ export default function ChatButton() {
           const data = line.slice(6)
           if (data === '[DONE]') break
 
+          let parsed: Record<string, unknown> | null = null
           try {
-            const parsed = JSON.parse(data)
-            if (parsed.delta) {
-              assistantText += parsed.delta
-              setMessages((prev) => {
-                const updated = [...prev]
-                updated[updated.length - 1] = {
-                  role: 'assistant',
-                  content: assistantText,
-                }
-                return updated
-              })
-            }
-            if (parsed.error) {
-              throw new Error(parsed.error)
-            }
+            parsed = JSON.parse(data)
           } catch {
-            // skip malformed SSE lines
+            continue
+          }
+          if (parsed?.error) {
+            throw new Error(String(parsed.error))
+          }
+          if (parsed?.delta) {
+            assistantText += parsed.delta as string
+            setMessages((prev) => {
+              const updated = [...prev]
+              updated[updated.length - 1] = {
+                role: 'assistant',
+                content: assistantText,
+              }
+              return updated
+            })
           }
         }
       }
