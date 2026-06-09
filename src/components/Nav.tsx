@@ -2,6 +2,7 @@
 
 import config from '../../folio.config'
 import { useState } from 'react'
+import AuthButton from '@/components/AuthButton'
 
 const links = [
   { label: 'Work', href: '#work' },
@@ -35,6 +36,9 @@ export default function Nav() {
             >
               Let&apos;s Talk
             </a>
+          </li>
+          <li>
+            <AuthButton />
           </li>
         </ul>
 
