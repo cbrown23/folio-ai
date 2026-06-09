@@ -2,6 +2,7 @@ import Nav from '@/components/Nav'
 import Hero from '@/components/Hero'
 import CaseStudies from '@/components/CaseStudies'
 import ChatButton from '@/components/ChatButton'
+import Logo from '@/components/Logo'
 import config from '../../folio.config'
 
 export default function Home() {
@@ -89,9 +90,8 @@ export default function Home() {
               href="https://github.com/cbrown23/folio-ai"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-500 hover:text-slate-400 transition-colors"
             >
-              folio-ai
+              <Logo className="text-xs hover:opacity-80 transition-opacity" />
             </a>{' '}
             — open source template
           </p>
