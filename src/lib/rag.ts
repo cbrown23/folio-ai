@@ -39,48 +39,21 @@ export async function fetchMemoriesForVisitor(
   name: string | null,
   ownerId = process.env.OWNER_ID ?? 'default',
 ): Promise<DocumentChunk[]> {
-  const results: DocumentChunk[] = []
-  const seenSources = new Set<string>()
+  // Email is the only identity anchor — LinkedIn OAuth provides a verified email
+  // on every login, so there is no safe reason to fall back to name alone.
+  // A memory without a matching email will never surface, regardless of name.
+  if (!email) return []
 
-  // Match by email first — most precise
-  if (email) {
-    const emailJson = JSON.stringify([{ email }])
-    const rows = await sql`
-      SELECT id, type, title, source, content, 1.0 AS similarity
-      FROM documents
-      WHERE owner_id = ${ownerId}
-        AND type = 'memory'
-        AND (metadata->'people') @> ${emailJson}::jsonb
-      ORDER BY source, created_at
-    `
-    for (const row of rows as DocumentChunk[]) {
-      seenSources.add(row.source)
-      results.push(row)
-    }
-  }
-
-  // Fall back to name match for memories without email
-  if (name) {
-    const rows = await sql`
-      SELECT id, type, title, source, content, 1.0 AS similarity
-      FROM documents
-      WHERE owner_id = ${ownerId}
-        AND type = 'memory'
-        AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements(metadata->'people') AS p
-          WHERE LOWER(p->>'name') = LOWER(${name})
-        )
-      ORDER BY source, created_at
-    `
-    for (const row of rows as DocumentChunk[]) {
-      if (!seenSources.has(row.source)) {
-        seenSources.add(row.source)
-        results.push(row)
-      }
-    }
-  }
-
-  return results
+  const emailJson = JSON.stringify([{ email }])
+  const rows = await sql`
+    SELECT id, type, title, source, content, 1.0 AS similarity
+    FROM documents
+    WHERE owner_id = ${ownerId}
+      AND type = 'memory'
+      AND (metadata->'people') @> ${emailJson}::jsonb
+    ORDER BY source, created_at
+  `
+  return rows as DocumentChunk[]
 }
 
 export async function fetchBaselineResume(

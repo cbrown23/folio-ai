@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   const [chunks, memories, baseline] = await Promise.all([
     query ? retrieveRelevant(query, ownerId) : Promise.resolve([]),
-    fetchMemoriesForVisitor(session.user?.email ?? null, session.user?.name ?? null, ownerId),
+    fetchMemoriesForVisitor(session.user?.email ?? null, null, ownerId),
     fetchBaselineResume(ownerId),
   ])
 
