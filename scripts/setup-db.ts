@@ -6,17 +6,15 @@ import { neon } from '@neondatabase/serverless'
 // DDL must run on the direct connection — PgBouncer (pooled) drops DDL context
 const sql = neon(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL!)
 
-// Must match EMBEDDING_DIMS in src/lib/embeddings.ts
-const DIMS = 512
-
 async function setup() {
   console.log('Setting up database...')
 
   await sql`CREATE EXTENSION IF NOT EXISTS vector`
   console.log('✓ pgvector extension enabled')
 
-  // Dimension is inlined — pgvector requires a literal, not a parameter
-  await sql.unsafe(`
+  // 512 dims — must match EMBEDDING_DIMS in src/lib/embeddings.ts
+  // Hardcoded as a SQL literal; pgvector does not accept a parameterized dimension
+  await sql`
     CREATE TABLE IF NOT EXISTS documents (
       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       owner_id    TEXT NOT NULL DEFAULT 'default',
@@ -24,14 +22,13 @@ async function setup() {
       title       TEXT NOT NULL,
       source      TEXT,
       content     TEXT NOT NULL,
-      embedding   vector(${DIMS}),
+      embedding   vector(512),
       metadata    JSONB NOT NULL DEFAULT '{}',
       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     )
-  `)
+  `
   console.log('✓ documents table ready')
 
-  // owner_id index supports future multi-tenant filtering
   await sql`
     CREATE INDEX IF NOT EXISTS documents_owner_id_idx
     ON documents (owner_id)
