@@ -66,6 +66,57 @@ export async function executeStudioTool(
         .join('\n\n')
     }
 
+    case 'commit_to_repo': {
+      const path = input.path as string
+      const content = input.content as string
+      const message = input.message as string
+
+      const token = process.env.GITHUB_TOKEN
+      const repoSlug = process.env.GITHUB_REPO
+      if (!token || !repoSlug) {
+        return 'GITHUB_TOKEN or GITHUB_REPO env var is not set — skipping git commit.'
+      }
+
+      const [owner, repo] = repoSlug.split('/')
+      const apiBase = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      }
+
+      // Fetch existing SHA if the file already exists (required for updates)
+      let sha: string | undefined
+      const checkRes = await fetch(apiBase, { headers })
+      if (checkRes.ok) {
+        const existing = await checkRes.json() as { sha: string }
+        sha = existing.sha
+      }
+
+      const body: Record<string, unknown> = {
+        message,
+        content: Buffer.from(content).toString('base64'),
+        branch: 'main',
+      }
+      if (sha) body.sha = sha
+
+      const putRes = await fetch(apiBase, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(body),
+      })
+
+      if (!putRes.ok) {
+        const err = await putRes.json() as { message?: string }
+        return `GitHub commit failed: ${err.message ?? putRes.statusText}`
+      }
+
+      const result = await putRes.json() as { commit: { html_url: string } }
+      const action = sha ? 'Updated' : 'Created'
+      return `${action} \`${path}\` — commit: ${result.commit.html_url}`
+    }
+
     default:
       return `Unknown tool: ${name}`
   }

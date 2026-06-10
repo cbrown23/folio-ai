@@ -55,4 +55,29 @@ export const studioTools: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'commit_to_repo',
+    description:
+      'Commit a content file to the GitHub repository. Call this after save_content succeeds to persist the file to version control. Creates the file if it does not exist; updates it if it does.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        path: {
+          type: 'string',
+          description:
+            'Repo-relative path for the file, e.g. "content/case-studies/container-platform.md"',
+        },
+        content: {
+          type: 'string',
+          description: 'Full file content to commit',
+        },
+        message: {
+          type: 'string',
+          description:
+            'Commit message, e.g. "content: add container platform case study"',
+        },
+      },
+      required: ['path', 'content', 'message'],
+    },
+  },
 ]
