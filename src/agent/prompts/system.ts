@@ -14,9 +14,13 @@ export function buildSystemPrompt(
   visitorName?: string | null,
   relevantContext?: string,
   visitorMemories?: string,
+  baselineResume?: string,
 ): string {
   const bio = loadContent(config.content.bioFile)
-  const resume = loadContent(config.content.resumeFile)
+  const resumeFile = loadContent(config.content.resumeFile)
+
+  // Prefer the DB-sourced baseline resume (always current); fall back to file
+  const resume = baselineResume || resumeFile
 
   const bioSection =
     bio ||
@@ -30,9 +34,9 @@ Your role: warm, professional front-desk assistant. Help visitors learn about ${
 
 ${bioSection}
 
-${resume ? `## Experience & Skills\n\n${resume}` : ''}
+${resume ? `## Resume\n\nThe following is ${config.owner.name}'s full resume. Use it as the authoritative source for all questions about his education, work history, skills, and certifications.\n\n${resume}` : ''}
 
-${relevantContext ? `## Relevant Context\n\nThe following content was retrieved from ${config.owner.name}'s portfolio as most relevant to the visitor's question. Use it to answer accurately and specifically:\n\n${relevantContext}` : ''}
+${relevantContext ? `## Additional Relevant Context\n\nThe following content was retrieved from ${config.owner.name}'s portfolio as most relevant to the visitor's question:\n\n${relevantContext}` : ''}
 
 ## Your Capabilities
 
