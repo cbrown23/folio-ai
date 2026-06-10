@@ -10,7 +10,10 @@ function loadContent(filename: string): string {
   }
 }
 
-export function buildSystemPrompt(visitorName?: string | null): string {
+export function buildSystemPrompt(
+  visitorName?: string | null,
+  relevantContext?: string,
+): string {
   const bio = loadContent(config.content.bioFile)
   const resume = loadContent(config.content.resumeFile)
 
@@ -27,6 +30,8 @@ Your role: warm, professional front-desk assistant. Help visitors learn about ${
 ${bioSection}
 
 ${resume ? `## Experience & Skills\n\n${resume}` : ''}
+
+${relevantContext ? `## Relevant Context\n\nThe following content was retrieved from ${config.owner.name}'s portfolio as most relevant to the visitor's question. Use it to answer accurately and specifically:\n\n${relevantContext}` : ''}
 
 ## Your Capabilities
 

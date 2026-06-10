@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { buildSystemPrompt } from '@/agent/prompts/system'
 import { tools } from '@/agent/tools/definitions'
 import { executeTool } from '@/agent/tools/handlers'
+import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,10 +46,23 @@ export async function POST(req: NextRequest) {
   } catch {
     return Response.json({ error: 'invalid_json' }, { status: 400 })
   }
-  const system = buildSystemPrompt(session.user?.name)
   // Cap history to keep input tokens bounded; preserves the most recent context
   const MAX_HISTORY = 10
   let messages: Anthropic.MessageParam[] = body.messages.slice(-MAX_HISTORY)
+
+  // Extract the latest user message to use as the retrieval query
+  const lastUserMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === 'user')
+  const query = typeof lastUserMessage?.content === 'string'
+    ? lastUserMessage.content
+    : null
+
+  const ownerId = process.env.OWNER_ID ?? 'default'
+  const chunks = query ? await retrieveRelevant(query, ownerId) : []
+  const relevantContext = formatChunksForPrompt(chunks)
+
+  const system = buildSystemPrompt(session.user?.name, relevantContext)
 
   const encoder = new TextEncoder()
 
