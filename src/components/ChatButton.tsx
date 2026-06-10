@@ -13,8 +13,37 @@ type Message = {
   toolStatus?: string | null
 }
 
+const URL_REGEX = /https?:\/\/[^\s)>\]"*]+/g
+
 function MessageContent({ content }: { content: string }) {
-  return <span className="whitespace-pre-wrap">{content}</span>
+  const parts: React.ReactNode[] = []
+  let last = 0
+  let match: RegExpExecArray | null
+
+  URL_REGEX.lastIndex = 0
+  while ((match = URL_REGEX.exec(content)) !== null) {
+    if (match.index > last) {
+      parts.push(content.slice(last, match.index))
+    }
+    const url = match[0]
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300 break-all"
+      >
+        {url}
+      </a>
+    )
+    last = match.index + url.length
+  }
+  if (last < content.length) {
+    parts.push(content.slice(last))
+  }
+
+  return <span className="whitespace-pre-wrap">{parts}</span>
 }
 
 export default function ChatButton() {
