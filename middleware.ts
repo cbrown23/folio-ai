@@ -8,5 +8,5 @@ export default auth
 export const config = {
   // Exclude static assets and the chat API (chat route calls auth() internally;
   // running Edge middleware on a streaming route can buffer the SSE response)
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/chat).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/chat|api/studio/chat).*)'],
 }
