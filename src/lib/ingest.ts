@@ -1,7 +1,7 @@
 import { sql } from './db'
 import { embedBatch } from './embeddings'
 
-export type DocType = 'bio' | 'resume' | 'case-study' | 'journal'
+export type DocType = 'bio' | 'resume' | 'case-study' | 'journal' | 'job-req'
 
 export function chunkText(text: string, maxChars = 600): string[] {
   const paragraphs = text.split(/\n\n+/).filter((p) => p.trim().length > 20)
@@ -26,7 +26,10 @@ export async function ingestDocument(
   source: string,
   content: string,
   ownerId = process.env.OWNER_ID ?? 'default',
+  submittedBy?: string,
 ): Promise<{ chunks: number }> {
+  // Default: owner created their own content
+  const submitter = submittedBy ?? ownerId
   const chunks = chunkText(content)
   await sql`DELETE FROM documents WHERE source = ${source} AND owner_id = ${ownerId}`
 
@@ -34,8 +37,8 @@ export async function ingestDocument(
   for (let i = 0; i < chunks.length; i++) {
     const vector = `[${embeddings[i].join(',')}]`
     await sql`
-      INSERT INTO documents (owner_id, type, title, source, content, embedding)
-      VALUES (${ownerId}, ${type}, ${title}, ${source}, ${chunks[i]}, ${vector}::vector)
+      INSERT INTO documents (owner_id, submitted_by, type, title, source, content, embedding)
+      VALUES (${ownerId}, ${submitter}, ${type}, ${title}, ${source}, ${chunks[i]}, ${vector}::vector)
     `
   }
 

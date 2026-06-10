@@ -9,6 +9,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "db:setup": "tsx scripts/setup-db.ts",
+    "db:migrate": "tsx scripts/migrate-001-submitted-by.ts",
     "db:ingest": "tsx scripts/ingest-content.ts"
   },
   "dependencies": {

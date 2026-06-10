@@ -18,7 +18,7 @@ export async function executeTool(
       const jobDescription = input.job_description as string
       const ownerId = process.env.OWNER_ID ?? 'default'
       // Cast a wider net with lower threshold and more chunks for a thorough fit analysis
-      const chunks = await retrieveRelevant(jobDescription, ownerId, 10, 0.35)
+      const chunks = await retrieveRelevant(jobDescription, ownerId, 10, 0.35, [])
       if (chunks.length === 0) {
         return "No relevant experience content found in the portfolio database. Proceed with what you know from the bio and resume in the system prompt."
       }

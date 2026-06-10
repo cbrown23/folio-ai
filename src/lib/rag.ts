@@ -14,6 +14,7 @@ export async function retrieveRelevant(
   ownerId = process.env.OWNER_ID ?? 'default',
   limit = 5,
   threshold = 0.5,
+  excludeTypes: string[] = ['job-req'],
 ): Promise<DocumentChunk[]> {
   const embedding = await embed(query)
   const vector = `[${embedding.join(',')}]`
@@ -23,6 +24,7 @@ export async function retrieveRelevant(
            1 - (embedding <=> ${vector}::vector) AS similarity
     FROM documents
     WHERE owner_id = ${ownerId}
+      AND type != ALL(${excludeTypes})
       AND 1 - (embedding <=> ${vector}::vector) > ${threshold}
     ORDER BY embedding <=> ${vector}::vector
     LIMIT ${limit}

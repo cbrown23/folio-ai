@@ -16,15 +16,16 @@ async function setup() {
   // Hardcoded as a SQL literal; pgvector does not accept a parameterized dimension
   await sql`
     CREATE TABLE IF NOT EXISTS documents (
-      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      owner_id    TEXT NOT NULL DEFAULT 'default',
-      type        TEXT NOT NULL,
-      title       TEXT NOT NULL,
-      source      TEXT,
-      content     TEXT NOT NULL,
-      embedding   vector(512),
-      metadata    JSONB NOT NULL DEFAULT '{}',
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_id     TEXT NOT NULL DEFAULT 'default',
+      submitted_by TEXT,
+      type         TEXT NOT NULL,
+      title        TEXT NOT NULL,
+      source       TEXT,
+      content      TEXT NOT NULL,
+      embedding    vector(512),
+      metadata     JSONB NOT NULL DEFAULT '{}',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `
   console.log('✓ documents table ready')
@@ -32,6 +33,11 @@ async function setup() {
   await sql`
     CREATE INDEX IF NOT EXISTS documents_owner_id_idx
     ON documents (owner_id)
+  `
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS documents_submitted_by_idx
+    ON documents (owner_id, submitted_by)
   `
 
   await sql`
