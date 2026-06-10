@@ -3,7 +3,8 @@ dotenv.config({ path: '.env.local' })
 
 import { neon } from '@neondatabase/serverless'
 
-const sql = neon(process.env.DATABASE_URL!)
+// DDL must run on the direct connection — PgBouncer (pooled) drops DDL context
+const sql = neon(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL!)
 
 // Must match EMBEDDING_DIMS in src/lib/embeddings.ts
 const DIMS = 512

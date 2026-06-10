@@ -6,7 +6,8 @@ import { join, basename } from 'path'
 import { neon } from '@neondatabase/serverless'
 import { embedBatch, EMBEDDING_MODEL } from '../src/lib/embeddings'
 
-const sql = neon(process.env.DATABASE_URL!)
+// Use direct connection for writes — pooled connection can drop context mid-script
+const sql = neon(process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL!)
 const CONTENT_DIR = join(process.cwd(), 'content')
 
 // Set OWNER_ID in .env.local to your LinkedIn user ID once you have it.
