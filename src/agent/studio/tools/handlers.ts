@@ -70,6 +70,43 @@ export async function executeStudioTool(
       return lines.join(' ')
     }
 
+    case 'save_connection': {
+      const name = input.name as string
+      const email = input.email as string
+      const nickname = input.nickname as string | undefined
+      const relationship = input.relationship as string | undefined
+      const notes = input.notes as string | undefined
+
+      const lines = [`## ${name}`, '', `**Email**: ${email}`]
+      if (nickname) lines.push(`**Preferred name**: ${nickname}`)
+      if (relationship) lines.push(`**Relationship**: ${relationship}`)
+      if (notes) lines.push('', '### Notes', notes)
+      const content = lines.join('\n')
+
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const source = `connection/${slug}`
+
+      // Preserve visit history written by the login hook
+      const existing = await sql`
+        SELECT metadata FROM documents
+        WHERE owner_id = ${ownerId}
+          AND type = 'connection'
+          AND metadata->>'email' = ${email}
+        LIMIT 1
+      `
+      const preserved: Record<string, unknown> = {}
+      if (existing.length > 0) {
+        const m = existing[0].metadata as Record<string, unknown> | null ?? {}
+        if (m.visit_count !== undefined) preserved.visit_count = m.visit_count
+        if (m.last_seen !== undefined) preserved.last_seen = m.last_seen
+      }
+
+      const metadata = { ...preserved, email, name }
+      const { chunks } = await ingestDocument('connection', name, source, content, ownerId, ownerId, metadata)
+
+      return `Connection profile for ${name} saved (${chunks} chunk${chunks !== 1 ? 's' : ''}). The chat agent will use this when ${nickname ?? name} visits using ${email}.`
+    }
+
     case 'set_baseline': {
       const source = input.source as string
 

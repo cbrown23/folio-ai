@@ -8,6 +8,7 @@ export type DocumentChunk = {
   source: string
   content: string
   similarity: number
+  metadata?: Record<string, unknown>
 }
 
 export async function retrieveRelevant(
@@ -54,6 +55,24 @@ export async function fetchMemoriesForVisitor(
     ORDER BY source, created_at
   `
   return rows as DocumentChunk[]
+}
+
+export async function fetchConnectionForVisitor(
+  email: string | null,
+  ownerId = process.env.OWNER_ID ?? 'default',
+): Promise<DocumentChunk | null> {
+  if (!email) return null
+
+  const rows = await sql`
+    SELECT id, type, title, source, content, metadata, 1.0 AS similarity
+    FROM documents
+    WHERE owner_id = ${ownerId}
+      AND type = 'connection'
+      AND metadata->>'email' = ${email}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `
+  return (rows[0] as DocumentChunk) ?? null
 }
 
 export async function fetchBaselineResume(

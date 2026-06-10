@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 import { buildSystemPrompt } from '@/agent/prompts/system'
 import { tools } from '@/agent/tools/definitions'
 import { executeTool } from '@/agent/tools/handlers'
-import { retrieveRelevant, fetchMemoriesForVisitor, fetchBaselineResume, formatChunksForPrompt } from '@/lib/rag'
+import { retrieveRelevant, fetchMemoriesForVisitor, fetchBaselineResume, fetchConnectionForVisitor, formatChunksForPrompt } from '@/lib/rag'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,17 +76,34 @@ export async function POST(req: NextRequest) {
 
   const ownerId = process.env.OWNER_ID ?? 'default'
 
-  const [chunks, memories, baseline] = await Promise.all([
+  const [chunks, memories, baseline, connection] = await Promise.all([
     query ? retrieveRelevant(query, ownerId) : Promise.resolve([]),
     fetchMemoriesForVisitor(session.user?.email ?? null, null, ownerId),
     fetchBaselineResume(ownerId),
+    fetchConnectionForVisitor(session.user?.email ?? null, ownerId),
   ])
 
   const relevantContext = formatChunksForPrompt(chunks)
   const visitorMemories = formatChunksForPrompt(memories)
   const baselineResume = formatChunksForPrompt(baseline) || undefined
 
-  const system = buildSystemPrompt(session.user?.name, relevantContext, visitorMemories || undefined, baselineResume)
+  let visitorConnection: string | undefined
+  if (connection?.content) {
+    const meta = connection.metadata ?? {}
+    const visitCount = meta.visit_count as number | undefined
+    const lastSeen = meta.last_seen as string | undefined
+    const historyParts: string[] = []
+    if (visitCount !== undefined) historyParts.push(`${visitCount} visit${visitCount !== 1 ? 's' : ''}`)
+    if (lastSeen) {
+      const d = new Date(lastSeen).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      historyParts.push(`last seen ${d}`)
+    }
+    visitorConnection = historyParts.length > 0
+      ? `${connection.content}\n\n**Visit history**: ${historyParts.join(', ')}`
+      : connection.content
+  }
+
+  const system = buildSystemPrompt(session.user?.name, relevantContext, visitorMemories || undefined, baselineResume, visitorConnection)
 
   const encoder = new TextEncoder()
 

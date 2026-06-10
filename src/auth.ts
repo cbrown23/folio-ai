@@ -1,17 +1,22 @@
 import NextAuth from 'next-auth'
 import LinkedIn from 'next-auth/providers/linkedin'
+import { upsertConnectionOnLogin } from '@/lib/connections'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [LinkedIn],
   session: { strategy: 'jwt' },
   events: {
-    signIn({ user, isNewUser }) {
+    async signIn({ user, isNewUser }) {
       console.log('[folio-ai login]', JSON.stringify({
         timestamp: new Date().toISOString(),
         name: user.name ?? null,
         email: user.email ?? null,
         isNewUser: isNewUser ?? false,
       }))
+      // Fire-and-forget — never blocks or breaks the login flow
+      if (user.name && user.email) {
+        upsertConnectionOnLogin(user.name, user.email)
+      }
     },
   },
   callbacks: {

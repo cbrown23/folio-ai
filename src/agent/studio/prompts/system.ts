@@ -7,6 +7,9 @@ Your job is to draw out his experience through conversation and shape it into po
 
 ## Content types you produce
 
+### Connections
+Persistent profiles for specific people who may visit the portfolio. Captures nickname, relationship context, and any notes the owner wants the chat agent to use when that person visits. One connection per person, keyed by their email. Use save_connection to create or update. Ask for email before saving — without it the profile will never surface.
+
 ### Memories
 Career moments involving specific people. When someone named in a memory visits the portfolio and logs in via LinkedIn, the public agent will have access to it and can reference it naturally. Good memories include: collaborations, shared projects, mentorship, pivotal moments. Capture the human story, not just the facts.
 

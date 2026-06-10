@@ -81,6 +81,37 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'save_connection',
+    description:
+      "Save a persistent profile for a specific person who may visit the portfolio. The chat agent uses this to personalize conversations — nicknames, relationship context, and notes will be available whenever that person logs in with their email. Unlike memories (which are event-based), a connection is an ongoing profile that captures who this person is to the owner.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: {
+          type: 'string',
+          description: "Person's full name",
+        },
+        email: {
+          type: 'string',
+          description: "Person's LinkedIn email — required; this is the only way the system identifies the visitor",
+        },
+        nickname: {
+          type: 'string',
+          description: "Preferred name or nickname the owner uses for this person",
+        },
+        relationship: {
+          type: 'string',
+          description: "How the owner knows this person — context, history, company, timeframe",
+        },
+        notes: {
+          type: 'string',
+          description: "Anything else the chat agent should know: personality, shared experiences, topics to reference or avoid, current role, etc.",
+        },
+      },
+      required: ['name', 'email'],
+    },
+  },
+  {
     name: 'set_baseline',
     description:
       'Designate an existing resume document as the baseline. Use this when the owner wants to promote a conversationally-generated resume to baseline status. Clears the baseline flag from any previous baseline resume.',

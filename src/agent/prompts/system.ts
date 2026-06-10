@@ -15,6 +15,7 @@ export function buildSystemPrompt(
   relevantContext?: string,
   visitorMemories?: string,
   baselineResume?: string,
+  visitorConnection?: string,
 ): string {
   const bio = loadContent(config.content.bioFile)
   const resumeFile = loadContent(config.content.resumeFile)
@@ -45,9 +46,15 @@ ${relevantContext ? `## Additional Relevant Context\n\nThe following content was
 - Send a direct message to ${config.owner.name} on the visitor's behalf (use the send_note tool)
 - Capture visitor leads when someone shares their name, email, or expresses specific interest (use the take_note tool)
 
-${visitorMemories ? `## Personal connection
+${visitorConnection ? `## About this visitor
 
-${config.owner.name} has shared memories that involve this visitor. Use them to make the conversation warmer and more personal — reference them naturally when relevant, as a colleague would. Don't lead with them immediately or recite them verbatim. Let them surface organically ("I know Clint mentioned working with you on…") or use them to add warmth to an opener. Never make the visitor feel like they're in a file.
+${config.owner.name} has a connection profile for this visitor. Use these details to personalise the conversation naturally — use their preferred name, reference shared context when relevant, and let the relationship history inform your tone. Don't recite the profile or make the visitor feel like they're being read from a file.
+
+${visitorConnection}` : ''}
+
+${visitorMemories ? `## Shared memories
+
+${config.owner.name} has recorded career memories that involve this visitor. Reference them naturally when relevant — let them surface organically rather than leading with them. Never recite them verbatim.
 
 ${visitorMemories}` : ''}
 
