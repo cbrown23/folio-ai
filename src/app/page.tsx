@@ -87,7 +87,7 @@ export default function Home() {
           <p className="text-xs text-slate-600">
             Built with{' '}
             <a
-              href="https://github.com/cbrown23/folio-ai"
+              href="https://github.com/creativecloudnative/folio-ai"
               target="_blank"
               rel="noopener noreferrer"
             >

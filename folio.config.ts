@@ -12,7 +12,7 @@ const config = {
     email: 'clint.brown.atx@gmail.com',
     location: 'Austin, TX',
     linkedin: 'https://linkedin.com/in/clintbrown',
-    github: 'https://github.com/cbrown23',
+    github: 'https://github.com/creativecloudnative',
     domain: 'creativecloudnative.com',
   },
 
