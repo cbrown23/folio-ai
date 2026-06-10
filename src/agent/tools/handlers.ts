@@ -1,4 +1,5 @@
 import config from '../../../folio.config'
+import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
 
 type AuthSession = {
   user?: {
@@ -13,6 +14,32 @@ export async function executeTool(
   session: AuthSession,
 ): Promise<string> {
   switch (name) {
+    case 'analyze_job_fit': {
+      const jobDescription = input.job_description as string
+      const ownerId = process.env.OWNER_ID ?? 'default'
+      // Cast a wider net with lower threshold and more chunks for a thorough fit analysis
+      const chunks = await retrieveRelevant(jobDescription, ownerId, 10, 0.35)
+      if (chunks.length === 0) {
+        return "No relevant experience content found in the portfolio database. Proceed with what you know from the bio and resume in the system prompt."
+      }
+      return `## Relevant experience and skills retrieved from portfolio\n\n${formatChunksForPrompt(chunks)}`
+    }
+
+    case 'notify_owner': {
+      const jobTitle = input.job_title as string | undefined
+      const company = input.company as string | undefined
+      const fitSummary = input.fit_summary as string
+      console.log('[folio-ai job-fit]', JSON.stringify({
+        timestamp: new Date().toISOString(),
+        visitor: session?.user?.name ?? 'Unknown',
+        visitorEmail: session?.user?.email ?? null,
+        jobTitle: jobTitle ?? null,
+        company: company ?? null,
+        fitSummary,
+      }))
+      return 'Owner notified.'
+    }
+
     case 'schedule_meeting': {
       const topic = input.topic as string | undefined
       const calUsername = process.env.CAL_USERNAME ?? config.scheduling.calUsername

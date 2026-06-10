@@ -10,6 +10,49 @@ type Message = {
   content: string
 }
 
+function MessageContent({ content }: { content: string }) {
+  const resumeMatch = content.match(/^([\s\S]*?)<resume>([\s\S]*?)<\/resume>([\s\S]*)$/)
+  if (!resumeMatch) {
+    return <span className="whitespace-pre-wrap">{content}</span>
+  }
+
+  const [, before, resumeContent, after] = resumeMatch
+
+  function downloadResume() {
+    const blob = new Blob([resumeContent.trim()], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'resume.txt'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <>
+      {before && <span className="whitespace-pre-wrap">{before}</span>}
+      <div className="mt-2 rounded-lg border border-indigo-700/50 bg-indigo-950/40 overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-indigo-700/40 bg-indigo-900/30">
+          <span className="text-xs font-medium text-indigo-300">Tailored Resume</span>
+          <button
+            onClick={downloadResume}
+            className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-200 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download .txt
+          </button>
+        </div>
+        <pre className="px-3 py-2 text-xs text-slate-300 whitespace-pre-wrap font-mono overflow-x-auto max-h-48 overflow-y-auto">
+          {resumeContent.trim()}
+        </pre>
+      </div>
+      {after && <span className="whitespace-pre-wrap">{after}</span>}
+    </>
+  )
+}
+
 export default function ChatButton() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -203,13 +246,15 @@ export default function ChatButton() {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-slate-800 text-slate-200 border border-slate-700/50'
                   }`}
                 >
-                  {msg.content || (
+                  {msg.content ? (
+                    <MessageContent content={msg.content} />
+                  ) : (
                     <span className="inline-flex items-center gap-1 py-0.5">
                       <span
                         className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce"

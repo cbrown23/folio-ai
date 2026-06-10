@@ -18,6 +18,52 @@ export const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'analyze_job_fit',
+    description:
+      "Retrieve Clint's skills, experience, and portfolio content most relevant to a job description. Call this when a visitor shares a job req for a potential opportunity. Returns matched content to use when writing a fit report and tailored resume.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        job_description: {
+          type: 'string',
+          description: 'The full job description or requirements the visitor provided',
+        },
+        job_title: {
+          type: 'string',
+          description: 'Job title if identifiable from the description',
+        },
+        company: {
+          type: 'string',
+          description: 'Company name if identifiable from the description',
+        },
+      },
+      required: ['job_description'],
+    },
+  },
+  {
+    name: 'notify_owner',
+    description:
+      "Notify Clint that a job fit analysis and tailored resume were generated for a visitor. Call this after producing the resume — before presenting results to the visitor.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        job_title: {
+          type: 'string',
+          description: 'Job title the visitor is recruiting for',
+        },
+        company: {
+          type: 'string',
+          description: 'Company name',
+        },
+        fit_summary: {
+          type: 'string',
+          description: '2-3 sentence summary of the fit analysis — key matches and gaps',
+        },
+      },
+      required: ['fit_summary'],
+    },
+  },
+  {
     name: 'take_note',
     description:
       "Capture a visitor lead or interest note. Use this when someone shares their name, email, or specific interest in working with Clint. Helps Clint follow up with interested visitors.",

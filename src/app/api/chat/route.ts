@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     for (let iter = 0; iter < 5; iter++) {
       const stream = anthropic.messages.stream({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 512,
+        max_tokens: 1024,
         system,
         tools,
         messages,
