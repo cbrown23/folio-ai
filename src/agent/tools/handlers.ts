@@ -1,5 +1,6 @@
 import config from '../../../folio.config'
 import { retrieveRelevant, fetchBaselineResume, formatChunksForPrompt } from '@/lib/rag'
+import { sendNoteToOwner } from '@/lib/email'
 
 type AuthSession = {
   user?: {
@@ -14,6 +15,32 @@ export async function executeTool(
   session: AuthSession,
 ): Promise<string> {
   switch (name) {
+    case 'send_note': {
+      const subject = input.subject as string
+      const message = input.message as string
+      const visitorName = session?.user?.name ?? 'A visitor'
+      const visitorEmail = session?.user?.email
+
+      if (!visitorEmail) {
+        return 'Unable to send — no email address found on your LinkedIn profile.'
+      }
+
+      try {
+        await sendNoteToOwner({ visitorName, visitorEmail, subject, message })
+        console.log('[folio-ai note-sent]', JSON.stringify({
+          timestamp: new Date().toISOString(),
+          from: visitorEmail,
+          name: visitorName,
+          subject,
+        }))
+        return `Your note has been sent to ${config.owner.name}. He'll receive it at his email with your address as the reply-to, so he can respond directly.`
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        console.error('[folio-ai note-error]', msg)
+        return `Sorry, the note couldn't be delivered right now (${msg}). You can reach ${config.owner.name} directly at ${config.owner.email}.`
+      }
+    }
+
     case 'analyze_job_fit': {
       const jobDescription = input.job_description as string
       const ownerId = process.env.OWNER_ID ?? 'default'

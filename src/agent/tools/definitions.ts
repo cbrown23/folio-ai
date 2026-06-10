@@ -64,6 +64,25 @@ export const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'send_note',
+    description:
+      "Send a direct message from the visitor to the portfolio owner via email. Use this when a visitor wants to reach out, introduce themselves, ask a question directly, or send a quick message — but doesn't need a full meeting. Their LinkedIn identity is automatically included as the reply-to address.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        subject: {
+          type: 'string',
+          description: 'Brief subject line, e.g. "Quick question about your Kubernetes work"',
+        },
+        message: {
+          type: 'string',
+          description: "The visitor's message to the owner, as they wrote it or lightly cleaned up",
+        },
+      },
+      required: ['subject', 'message'],
+    },
+  },
+  {
     name: 'take_note',
     description:
       "Capture a visitor lead or interest note. Use this when someone shares their name, email, or specific interest in working with Clint. Helps Clint follow up with interested visitors.",
