@@ -25,14 +25,14 @@ const config = {
 
   agent: {
     // Display name shown to visitors in the chat UI
-    assistantName: 'Folio',
+    assistantName: "Clint's Assistant",
     // Brief persona shown as chat placeholder / greeting
     greeting: "Hi — I can answer questions about Clint's work, or help you schedule time with him.",
   },
 
   scheduling: {
     // Cal.com username — used to build booking links
-    calUsername: 'clintbrown',
+    calUsername: 'clint-brown',
     // Default event type slug from Cal.com
     defaultEventSlug: '30min',
   },
