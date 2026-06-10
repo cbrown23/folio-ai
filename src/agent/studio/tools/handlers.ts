@@ -2,7 +2,7 @@ import { sql } from '@/lib/db'
 import { ingestDocument } from '@/lib/ingest'
 import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
 
-type DocType = 'case-study' | 'journal' | 'bio' | 'resume'
+type DocType = 'case-study' | 'journal' | 'bio' | 'resume' | 'memory'
 
 export async function executeStudioTool(
   name: string,
@@ -36,6 +36,22 @@ export async function executeStudioTool(
         return `No existing content found for: "${query}"`
       }
       return formatChunksForPrompt(chunks)
+    }
+
+    case 'save_memory': {
+      const title = input.title as string
+      const content = input.content as string
+      const people = input.people as Array<{ name: string; email?: string }>
+      const contextDate = input.context_date as string | undefined
+
+      const source = `memory/${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+      const metadata: Record<string, unknown> = { people }
+      if (contextDate) metadata.context_date = contextDate
+
+      const { chunks } = await ingestDocument('memory', title, source, content, ownerId, ownerId, metadata)
+
+      const peopleList = people.map((p) => p.email ? `${p.name} (${p.email})` : p.name).join(', ')
+      return `Memory "${title}" saved (${chunks} chunk${chunks !== 1 ? 's' : ''}). People: ${peopleList}. This will surface to them when they visit.`
     }
 
     case 'set_baseline': {

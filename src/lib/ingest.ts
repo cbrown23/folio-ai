@@ -1,7 +1,7 @@
 import { sql } from './db'
 import { embedBatch } from './embeddings'
 
-export type DocType = 'bio' | 'resume' | 'case-study' | 'journal' | 'job-req'
+export type DocType = 'bio' | 'resume' | 'case-study' | 'journal' | 'job-req' | 'memory'
 
 export function chunkText(text: string, maxChars = 600): string[] {
   const paragraphs = text.split(/\n\n+/).filter((p) => p.trim().length > 20)

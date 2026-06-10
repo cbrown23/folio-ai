@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 import { buildSystemPrompt } from '@/agent/prompts/system'
 import { tools } from '@/agent/tools/definitions'
 import { executeTool } from '@/agent/tools/handlers'
-import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
+import { retrieveRelevant, fetchMemoriesForVisitor, formatChunksForPrompt } from '@/lib/rag'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,10 +59,16 @@ export async function POST(req: NextRequest) {
     : null
 
   const ownerId = process.env.OWNER_ID ?? 'default'
-  const chunks = query ? await retrieveRelevant(query, ownerId) : []
-  const relevantContext = formatChunksForPrompt(chunks)
 
-  const system = buildSystemPrompt(session.user?.name, relevantContext)
+  const [chunks, memories] = await Promise.all([
+    query ? retrieveRelevant(query, ownerId) : Promise.resolve([]),
+    fetchMemoriesForVisitor(session.user?.email ?? null, session.user?.name ?? null, ownerId),
+  ])
+
+  const relevantContext = formatChunksForPrompt(chunks)
+  const visitorMemories = formatChunksForPrompt(memories)
+
+  const system = buildSystemPrompt(session.user?.name, relevantContext, visitorMemories || undefined)
 
   const encoder = new TextEncoder()
 

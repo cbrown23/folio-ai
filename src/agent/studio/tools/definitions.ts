@@ -46,6 +46,41 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'save_memory',
+    description:
+      'Save a career memory that may involve one or more people. When a named person later visits the portfolio and logs in, the agent will have access to this memory and can reference it naturally.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Short title for the memory, e.g. "Kubernetes migration at Acme Corp"',
+        },
+        content: {
+          type: 'string',
+          description: 'The full narrative of the memory — what happened, why it mattered, the shared experience',
+        },
+        people: {
+          type: 'array',
+          description: 'People involved in this memory. Include anyone who might visit the portfolio.',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              email: { type: 'string', description: 'LinkedIn email if known — enables exact matching' },
+            },
+            required: ['name'],
+          },
+        },
+        context_date: {
+          type: 'string',
+          description: 'Approximate timeframe, e.g. "2021–2022" or "Q3 2023"',
+        },
+      },
+      required: ['title', 'content', 'people'],
+    },
+  },
+  {
     name: 'set_baseline',
     description:
       'Designate an existing resume document as the baseline. Use this when the owner wants to promote a conversationally-generated resume to baseline status. Clears the baseline flag from any previous baseline resume.',

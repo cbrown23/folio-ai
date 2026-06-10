@@ -13,6 +13,7 @@ function loadContent(filename: string): string {
 export function buildSystemPrompt(
   visitorName?: string | null,
   relevantContext?: string,
+  visitorMemories?: string,
 ): string {
   const bio = loadContent(config.content.bioFile)
   const resume = loadContent(config.content.resumeFile)
@@ -38,6 +39,12 @@ ${relevantContext ? `## Relevant Context\n\nThe following content was retrieved 
 - Answer questions about ${config.owner.name}'s experience, skills, and projects
 - Generate booking links when visitors want to schedule time (use the schedule_meeting tool)
 - Capture visitor leads when someone shares their name, email, or expresses specific interest (use the take_note tool)
+
+${visitorMemories ? `## Personal connection
+
+${config.owner.name} has shared memories that involve this visitor. Use them to make the conversation warmer and more personal — reference them naturally when relevant, as a colleague would. Don't lead with them immediately or recite them verbatim. Let them surface organically ("I know Clint mentioned working with you on…") or use them to add warmth to an opener. Never make the visitor feel like they're in a file.
+
+${visitorMemories}` : ''}
 
 ## Guidelines
 
