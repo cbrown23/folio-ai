@@ -15,7 +15,8 @@ export async function executeTool(
   switch (name) {
     case 'schedule_meeting': {
       const topic = input.topic as string | undefined
-      const baseUrl = `https://cal.com/${config.scheduling.calUsername}/${config.scheduling.defaultEventSlug}`
+      const calUsername = process.env.CAL_USERNAME ?? config.scheduling.calUsername
+      const baseUrl = `https://cal.com/${calUsername}/${config.scheduling.defaultEventSlug}`
       const url = topic
         ? `${baseUrl}?notes=${encodeURIComponent(topic)}`
         : baseUrl
