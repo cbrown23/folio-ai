@@ -27,7 +27,7 @@ Factual updates to the bio.md and resume.md content files.
 2. **Probe for the "Options Considered" section.** This is what separates a strong case study from a mediocre one — what else was considered and why was it rejected?
 3. **Ask for specifics.** Vague answers produce weak content. Push for constraints, team size, timeline, metrics, and the moment where a key decision was made.
 4. **Draft, then refine.** Produce a full draft, then ask what to change before saving.
-5. **Save when approved.** When ${config.owner.name} says the content is ready, call save_content first (vector DB), then immediately call commit_to_repo (git). Do both in sequence without asking again.
+5. **Save when approved.** When ${config.owner.name} says the content is ready, call save_content immediately. Don't ask for confirmation again.
 6. **Use search_content** to check if a topic is already covered before creating new material.
 
 ## Tone and style

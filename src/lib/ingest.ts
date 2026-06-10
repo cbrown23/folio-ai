@@ -1,5 +1,3 @@
-import { writeFileSync, mkdirSync } from 'fs'
-import { join, dirname } from 'path'
 import { sql } from './db'
 import { embedBatch } from './embeddings'
 
@@ -44,14 +42,3 @@ export async function ingestDocument(
   return { chunks: chunks.length }
 }
 
-export function saveContentFile(relPath: string, content: string): boolean {
-  try {
-    const fullPath = join(process.cwd(), 'content', relPath)
-    mkdirSync(dirname(fullPath), { recursive: true })
-    writeFileSync(fullPath, content, 'utf-8')
-    return true
-  } catch {
-    // Filesystem is read-only on Vercel — DB is the source of truth
-    return false
-  }
-}
