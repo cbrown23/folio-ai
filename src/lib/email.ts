@@ -1,19 +1,22 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import config from '../../folio.config'
 
-// Lazy — Resend throws at construction if the key is missing,
-// which would break the build. Instantiate only when actually sending.
-function getResend(): Resend {
-  const key = process.env.RESEND_API_KEY
-  if (!key) throw new Error('RESEND_API_KEY is not set')
-  return new Resend(key)
+// Lazy — avoids module-load failure when env vars aren't set (e.g. build time)
+function getTransport() {
+  const user = process.env.ZOHO_SMTP_USER
+  const pass = process.env.ZOHO_SMTP_PASS
+  if (!user || !pass) throw new Error('ZOHO_SMTP_USER or ZOHO_SMTP_PASS is not set')
+
+  return nodemailer.createTransport({
+    host: 'smtp.zoho.com',
+    port: 587,
+    secure: false, // STARTTLS
+    auth: { user, pass },
+  })
 }
 
-// FROM must be a verified Resend domain. Set RESEND_FROM_EMAIL in env vars
-// after verifying creativecloudnative.com in the Resend dashboard.
-// Visitor's email goes into reply-to so the owner can reply directly.
 const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL ?? `assistant@${config.owner.domain}`
+  process.env.ZOHO_SMTP_USER ?? `assistant@${config.owner.domain}`
 
 export type NoteEmailParams = {
   visitorName: string
@@ -25,9 +28,9 @@ export type NoteEmailParams = {
 export async function sendNoteToOwner(params: NoteEmailParams): Promise<void> {
   const { visitorName, visitorEmail, subject, message } = params
 
-  const { error } = await getResend().emails.send({
+  await getTransport().sendMail({
     from: `${config.agent.assistantName} <${FROM_EMAIL}>`,
-    replyTo: visitorEmail,
+    replyTo: `${visitorName} <${visitorEmail}>`,
     to: process.env.OWNER_EMAIL ?? config.owner.email,
     subject: `Note from ${visitorName}: ${subject}`,
     html: `
@@ -45,6 +48,4 @@ export async function sendNoteToOwner(params: NoteEmailParams): Promise<void> {
       </div>
     `,
   })
-
-  if (error) throw new Error(error.message)
 }
