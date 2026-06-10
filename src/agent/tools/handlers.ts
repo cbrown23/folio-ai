@@ -25,6 +25,15 @@ export async function executeTool(
       const query = params.toString()
       const url = query ? `${baseUrl}?${query}` : baseUrl
 
+      // Record LinkedIn identity server-side at the moment of intent —
+      // this is the verified identity regardless of what they type into Cal.com
+      console.log('[folio-ai booking-intent]', JSON.stringify({
+        timestamp: new Date().toISOString(),
+        name: session?.user?.name ?? null,
+        email: session?.user?.email ?? null,
+        topic: topic ?? null,
+      }))
+
       const visitorName = session?.user?.name ?? 'you'
       return `Here's a booking link for ${visitorName}: ${url}\n\nYour name and email are pre-filled from your LinkedIn profile. Just pick a time and confirm.`
     }
