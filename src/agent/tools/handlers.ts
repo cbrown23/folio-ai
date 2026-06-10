@@ -17,11 +17,16 @@ export async function executeTool(
       const topic = input.topic as string | undefined
       const calUsername = process.env.CAL_USERNAME ?? config.scheduling.calUsername
       const baseUrl = `https://cal.com/${calUsername}/${config.scheduling.defaultEventSlug}`
-      const url = topic
-        ? `${baseUrl}?notes=${encodeURIComponent(topic)}`
-        : baseUrl
+
+      const params = new URLSearchParams()
+      if (session?.user?.name) params.set('name', session.user.name)
+      if (session?.user?.email) params.set('email', session.user.email)
+      if (topic) params.set('notes', topic)
+      const query = params.toString()
+      const url = query ? `${baseUrl}?${query}` : baseUrl
+
       const visitorName = session?.user?.name ?? 'you'
-      return `Here's a booking link for ${visitorName}: ${url}\n\nThat'll get you a 30-minute slot with Clint. He'll see your LinkedIn profile when you book.`
+      return `Here's a booking link for ${visitorName}: ${url}\n\nYour name and email are pre-filled from your LinkedIn profile. Just pick a time and confirm.`
     }
 
     case 'take_note': {
