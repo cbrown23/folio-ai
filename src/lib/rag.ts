@@ -11,6 +11,7 @@ export type DocumentChunk = {
 
 export async function retrieveRelevant(
   query: string,
+  ownerId = process.env.OWNER_ID ?? 'default',
   limit = 5,
 ): Promise<DocumentChunk[]> {
   const embedding = await embed(query)
@@ -20,7 +21,8 @@ export async function retrieveRelevant(
     SELECT id, type, title, content,
            1 - (embedding <=> ${vector}::vector) AS similarity
     FROM documents
-    WHERE 1 - (embedding <=> ${vector}::vector) > 0.5
+    WHERE owner_id = ${ownerId}
+      AND 1 - (embedding <=> ${vector}::vector) > 0.5
     ORDER BY embedding <=> ${vector}::vector
     LIMIT ${limit}
   `

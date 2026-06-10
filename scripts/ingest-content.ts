@@ -9,6 +9,10 @@ import { embedBatch, EMBEDDING_MODEL } from '../src/lib/embeddings'
 const sql = neon(process.env.DATABASE_URL!)
 const CONTENT_DIR = join(process.cwd(), 'content')
 
+// Set OWNER_ID in .env.local to your LinkedIn user ID once you have it.
+// Until then 'default' scopes all content to a single unnamed owner.
+const OWNER_ID = process.env.OWNER_ID ?? 'default'
+
 type DocType = 'bio' | 'resume' | 'case-study' | 'journal'
 
 function chunkText(text: string, maxChars = 600): string[] {
@@ -34,16 +38,17 @@ async function upsertDocument(
   source: string,
   chunks: string[],
 ) {
-  // Remove existing chunks for this source so re-ingestion is idempotent
-  await sql`DELETE FROM documents WHERE source = ${source}`
+  // Scoped delete — only removes this owner's chunks for the source file
+  await sql`DELETE FROM documents WHERE source = ${source} AND owner_id = ${OWNER_ID}`
 
   const embeddings = await embedBatch(chunks)
 
   for (let i = 0; i < chunks.length; i++) {
     const vector = `[${embeddings[i].join(',')}]`
     await sql`
-      INSERT INTO documents (type, title, source, content, embedding)
+      INSERT INTO documents (owner_id, type, title, source, content, embedding)
       VALUES (
+        ${OWNER_ID},
         ${type},
         ${title},
         ${source},
