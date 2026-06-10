@@ -48,7 +48,7 @@ export const studioTools: Anthropic.Tool[] = [
   {
     name: 'save_memory',
     description:
-      'Save a career memory that may involve one or more people. When a named person later visits the portfolio and logs in, the agent will have access to this memory and can reference it naturally.',
+      'Save a career memory involving one or more people. A memory ONLY surfaces to a visitor if their LinkedIn email exactly matches an email recorded in the people array — email is mandatory for the memory to be retrievable by that person. Memories with no emails are owner-only and will never surface to visitors.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -62,12 +62,12 @@ export const studioTools: Anthropic.Tool[] = [
         },
         people: {
           type: 'array',
-          description: 'People involved in this memory. Include anyone who might visit the portfolio.',
+          description: 'People involved in this memory. Email is required per person for the memory to surface when they visit — do not omit it without explicitly confirming the owner does not have it.',
           items: {
             type: 'object',
             properties: {
               name: { type: 'string' },
-              email: { type: 'string', description: 'LinkedIn email if known — enables exact matching' },
+              email: { type: 'string', description: 'LinkedIn email address — required for this person to see the memory when they visit' },
             },
             required: ['name'],
           },

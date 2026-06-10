@@ -50,8 +50,24 @@ export async function executeStudioTool(
 
       const { chunks } = await ingestDocument('memory', title, source, content, ownerId, ownerId, metadata)
 
-      const peopleList = people.map((p) => p.email ? `${p.name} (${p.email})` : p.name).join(', ')
-      return `Memory "${title}" saved (${chunks} chunk${chunks !== 1 ? 's' : ''}). People: ${peopleList}. This will surface to them when they visit.`
+      const withEmail = people.filter((p) => p.email)
+      const withoutEmail = people.filter((p) => !p.email)
+
+      const lines: string[] = [
+        `Memory "${title}" saved (${chunks} chunk${chunks !== 1 ? 's' : ''}).`,
+      ]
+
+      if (withEmail.length > 0) {
+        lines.push(`Will surface to: ${withEmail.map((p) => `${p.name} (${p.email})`).join(', ')}.`)
+      }
+      if (withoutEmail.length > 0) {
+        lines.push(`⚠️ No email recorded for: ${withoutEmail.map((p) => p.name).join(', ')}. This memory will NOT surface to ${withoutEmail.length === 1 ? 'that person' : 'those people'} until you update it with their email.`)
+      }
+      if (withEmail.length === 0) {
+        lines.push('⚠️ No emails recorded — this memory is owner-only and will not surface to any visitor.')
+      }
+
+      return lines.join(' ')
     }
 
     case 'set_baseline': {
