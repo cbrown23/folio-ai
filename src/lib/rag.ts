@@ -33,6 +33,21 @@ export async function retrieveRelevant(
   return rows as DocumentChunk[]
 }
 
+export async function fetchBaselineResume(
+  ownerId = process.env.OWNER_ID ?? 'default',
+): Promise<DocumentChunk[]> {
+  const rows = await sql`
+    SELECT id, type, title, content,
+           1.0 AS similarity
+    FROM documents
+    WHERE owner_id = ${ownerId}
+      AND type = 'resume'
+      AND metadata->>'is_baseline' = 'true'
+    ORDER BY created_at ASC
+  `
+  return rows as DocumentChunk[]
+}
+
 export function formatChunksForPrompt(chunks: DocumentChunk[]): string {
   if (chunks.length === 0) return ''
   return chunks

@@ -27,18 +27,28 @@ export async function ingestDocument(
   content: string,
   ownerId = process.env.OWNER_ID ?? 'default',
   submittedBy?: string,
+  metadata: Record<string, unknown> = {},
 ): Promise<{ chunks: number }> {
-  // Default: owner created their own content
   const submitter = submittedBy ?? ownerId
   const chunks = chunkText(content)
   await sql`DELETE FROM documents WHERE source = ${source} AND owner_id = ${ownerId}`
 
+  // Ensure only one baseline resume exists per owner
+  if (metadata.is_baseline && type === 'resume') {
+    await sql`
+      UPDATE documents
+      SET metadata = metadata - 'is_baseline'
+      WHERE owner_id = ${ownerId} AND type = 'resume'
+    `
+  }
+
+  const metadataJson = JSON.stringify(metadata)
   const embeddings = await embedBatch(chunks)
   for (let i = 0; i < chunks.length; i++) {
     const vector = `[${embeddings[i].join(',')}]`
     await sql`
-      INSERT INTO documents (owner_id, submitted_by, type, title, source, content, embedding)
-      VALUES (${ownerId}, ${submitter}, ${type}, ${title}, ${source}, ${chunks[i]}, ${vector}::vector)
+      INSERT INTO documents (owner_id, submitted_by, type, title, source, content, embedding, metadata)
+      VALUES (${ownerId}, ${submitter}, ${type}, ${title}, ${source}, ${chunks[i]}, ${vector}::vector, ${metadataJson}::jsonb)
     `
   }
 

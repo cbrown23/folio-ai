@@ -38,6 +38,30 @@ export async function executeStudioTool(
       return formatChunksForPrompt(chunks)
     }
 
+    case 'set_baseline': {
+      const source = input.source as string
+
+      // Clear existing baseline flag from all resumes for this owner
+      await sql`
+        UPDATE documents
+        SET metadata = metadata - 'is_baseline'
+        WHERE owner_id = ${ownerId} AND type = 'resume'
+      `
+
+      const result = await sql`
+        UPDATE documents
+        SET metadata = metadata || '{"is_baseline": true}'::jsonb
+        WHERE owner_id = ${ownerId} AND source = ${source}
+        RETURNING title
+      `
+
+      if (result.length === 0) {
+        return `No document found with source "${source}". Use list_content to see available sources.`
+      }
+
+      return `"${result[0].title}" is now the baseline resume.`
+    }
+
     case 'list_content': {
       const rows = await sql`
         SELECT DISTINCT ON (source) type, title, source

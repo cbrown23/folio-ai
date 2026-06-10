@@ -20,14 +20,19 @@ Options:
 
 What's on your mind?`
 
+type UploadStatus = 'idle' | 'uploading' | 'success' | 'error'
+
 export default function StudioChat() {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'greeting', role: 'assistant', content: GREETING },
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
+  const [uploadMessage, setUploadMessage] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -134,6 +139,33 @@ export default function StudioChat() {
     }
   }
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadStatus('uploading')
+    setUploadMessage('')
+
+    try {
+      const content = await file.text()
+      const res = await fetch('/api/studio/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      setUploadStatus('success')
+      setUploadMessage(`"${file.name}" ingested as baseline resume (${data.chunks} chunks)`)
+    } catch (err) {
+      setUploadStatus('error')
+      setUploadMessage(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      // Reset input so the same file can be re-uploaded after edits
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -171,6 +203,37 @@ export default function StudioChat() {
         <div ref={bottomRef} />
       </div>
 
+      {/* Baseline resume upload */}
+      <div className="border-t border-zinc-800 bg-zinc-900/60 px-4 py-3">
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
+          <span className="text-xs text-zinc-500 shrink-0">Baseline resume:</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,.txt"
+            onChange={handleFileUpload}
+            disabled={uploadStatus === 'uploading'}
+            className="hidden"
+            id="resume-upload"
+          />
+          <label
+            htmlFor="resume-upload"
+            className={`cursor-pointer text-xs px-3 py-1.5 rounded border transition-colors ${
+              uploadStatus === 'uploading'
+                ? 'border-zinc-700 text-zinc-600 cursor-not-allowed'
+                : 'border-zinc-600 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400'
+            }`}
+          >
+            {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload .md or .txt'}
+          </label>
+          {uploadMessage && (
+            <span className={`text-xs truncate ${uploadStatus === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+              {uploadMessage}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Input */}
       <div className="border-t border-zinc-700 bg-zinc-900 px-4 py-4">
         <div className="flex gap-3 items-end max-w-4xl mx-auto">
@@ -193,7 +256,7 @@ export default function StudioChat() {
           </button>
         </div>
         <p className="text-xs text-zinc-600 mt-2 text-center max-w-4xl mx-auto">
-          Shift+Enter for new line · Enter to send · Content saves to the vector DB and filesystem
+          Shift+Enter for new line · Enter to send · Content saves to the vector DB
         </p>
       </div>
     </div>

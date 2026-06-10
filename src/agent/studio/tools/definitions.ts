@@ -46,6 +46,21 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'set_baseline',
+    description:
+      'Designate an existing resume document as the baseline. Use this when the owner wants to promote a conversationally-generated resume to baseline status. Clears the baseline flag from any previous baseline resume.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        source: {
+          type: 'string',
+          description: 'The source path of the document to designate, e.g. "content/resume.md"',
+        },
+      },
+      required: ['source'],
+    },
+  },
+  {
     name: 'list_content',
     description:
       'List all documents currently in the portfolio vector database, grouped by type.',

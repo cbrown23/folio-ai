@@ -1,5 +1,5 @@
 import config from '../../../folio.config'
-import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
+import { retrieveRelevant, fetchBaselineResume, formatChunksForPrompt } from '@/lib/rag'
 
 type AuthSession = {
   user?: {
@@ -17,12 +17,29 @@ export async function executeTool(
     case 'analyze_job_fit': {
       const jobDescription = input.job_description as string
       const ownerId = process.env.OWNER_ID ?? 'default'
-      // Cast a wider net with lower threshold and more chunks for a thorough fit analysis
-      const chunks = await retrieveRelevant(jobDescription, ownerId, 10, 0.35, [])
-      if (chunks.length === 0) {
-        return "No relevant experience content found in the portfolio database. Proceed with what you know from the bio and resume in the system prompt."
+
+      // Always include the full baseline resume — similarity search alone may miss
+      // relevant experience that doesn't lexically overlap with the job description
+      const baseline = await fetchBaselineResume(ownerId)
+
+      // Supplement with similarity results from non-resume content (case studies, bio, journal)
+      const supplementary = await retrieveRelevant(jobDescription, ownerId, 8, 0.35, ['job-req', 'resume'])
+
+      const allChunks = [...baseline, ...supplementary]
+      if (allChunks.length === 0) {
+        return 'No portfolio content found. Ask the owner to upload a baseline resume from the Content Studio before running fit analysis.'
       }
-      return `## Relevant experience and skills retrieved from portfolio\n\n${formatChunksForPrompt(chunks)}`
+
+      const sections: string[] = []
+      if (baseline.length > 0) {
+        sections.push(`## Baseline Resume\n\n${formatChunksForPrompt(baseline)}`)
+      } else {
+        sections.push('## Baseline Resume\n\n_No baseline resume designated. Using similarity search only._')
+      }
+      if (supplementary.length > 0) {
+        sections.push(`## Relevant Case Studies & Other Content\n\n${formatChunksForPrompt(supplementary)}`)
+      }
+      return sections.join('\n\n')
     }
 
     case 'notify_owner': {
