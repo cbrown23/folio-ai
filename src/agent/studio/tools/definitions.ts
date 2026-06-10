@@ -98,10 +98,19 @@ export const studioTools: Anthropic.Tool[] = [
   {
     name: 'list_content',
     description:
-      'List all documents currently in the portfolio vector database, grouped by type.',
+      'List documents in the portfolio vector database. Results include creation date and are ordered newest-first. Optionally filter by type or restrict to documents created on or after a given date.',
     input_schema: {
       type: 'object' as const,
-      properties: {},
+      properties: {
+        type: {
+          type: 'string',
+          description: 'Filter by document type: bio, resume, case-study, journal, memory, job-req',
+        },
+        since: {
+          type: 'string',
+          description: 'ISO 8601 date string (e.g. "2025-01-01"). Only return documents created on or after this date.',
+        },
+      },
       required: [],
     },
   },

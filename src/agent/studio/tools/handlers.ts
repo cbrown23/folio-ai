@@ -79,19 +79,39 @@ export async function executeStudioTool(
     }
 
     case 'list_content': {
+      const typeFilter = input.type as string | undefined
+      const since = input.since as string | undefined
+
       const rows = await sql`
-        SELECT DISTINCT ON (source) type, title, source
+        SELECT DISTINCT ON (source)
+          type, title, source,
+          MIN(created_at) OVER (PARTITION BY source) AS created_at
         FROM documents
         WHERE owner_id = ${ownerId}
-        ORDER BY source, type
+          AND (${typeFilter ?? null} IS NULL OR type = ${typeFilter ?? null})
+          AND (${since ?? null} IS NULL OR created_at >= ${since ?? null}::timestamptz)
+        ORDER BY source, created_at DESC
       `
-      if (rows.length === 0) return 'No documents in the portfolio yet.'
+
+      if (rows.length === 0) {
+        return typeFilter
+          ? `No ${typeFilter} documents found${since ? ` since ${since}` : ''}.`
+          : 'No documents in the portfolio yet.'
+      }
+
+      // Sort by created_at descending (newest first) after dedup
+      const sorted = [...rows].sort(
+        (a, b) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime()
+      )
 
       const grouped: Record<string, string[]> = {}
-      for (const row of rows) {
+      for (const row of sorted) {
         const t = row.type as string
+        const date = new Date(row.created_at as string).toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric',
+        })
         if (!grouped[t]) grouped[t] = []
-        grouped[t].push(`- ${row.title} (${row.source})`)
+        grouped[t].push(`- ${row.title} — ${date} (${row.source})`)
       }
 
       return Object.entries(grouped)
