@@ -15,7 +15,8 @@ export default async function StudioPage() {
     redirect('/')
   }
 
-  if (session.user.email !== config.owner.email) {
+  const ownerEmail = process.env.OWNER_EMAIL ?? config.owner.email
+  if (session.user.email !== ownerEmail) {
     redirect('/')
   }
 

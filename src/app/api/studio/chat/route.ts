@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
 const anthropic = new Anthropic()
 
 function isOwner(email?: string | null): boolean {
-  return !!email && email === config.owner.email
+  const ownerEmail = process.env.OWNER_EMAIL ?? config.owner.email
+  return !!email && email === ownerEmail
 }
 
 export async function POST(req: NextRequest) {
