@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import StudioChat from '@/components/StudioChat'
+import StudioTabs from '@/components/StudioTabs'
 import config from '../../../folio.config'
 
 export const metadata = {
@@ -11,18 +11,13 @@ export const metadata = {
 export default async function StudioPage() {
   const session = await auth()
 
-  if (!session?.user) {
-    redirect('/')
-  }
+  if (!session?.user) redirect('/')
 
   const ownerEmail = process.env.OWNER_EMAIL ?? config.owner.email
-  if (session.user.email !== ownerEmail) {
-    redirect('/')
-  }
+  if (session.user.email !== ownerEmail) redirect('/')
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100">
-      {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -42,9 +37,8 @@ export default async function StudioPage() {
         </div>
       </header>
 
-      {/* Chat takes remaining height */}
       <div className="flex-1 overflow-hidden">
-        <StudioChat />
+        <StudioTabs />
       </div>
     </div>
   )
