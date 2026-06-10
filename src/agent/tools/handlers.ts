@@ -43,6 +43,8 @@ export async function executeTool(
 
     case 'analyze_job_fit': {
       const jobDescription = input.job_description as string
+      const jobTitle = input.job_title as string | undefined
+      const company = input.company as string | undefined
       const ownerId = process.env.OWNER_ID ?? 'default'
 
       // Always include the full baseline resume — similarity search alone may miss
@@ -57,6 +59,15 @@ export async function executeTool(
         return 'No portfolio content found. Ask the owner to upload a baseline resume from the Content Studio before running fit analysis.'
       }
 
+      // Notify owner automatically — no separate tool call needed
+      console.log('[folio-ai job-fit]', JSON.stringify({
+        timestamp: new Date().toISOString(),
+        visitor: session?.user?.name ?? 'Unknown',
+        visitorEmail: session?.user?.email ?? null,
+        jobTitle: jobTitle ?? null,
+        company: company ?? null,
+      }))
+
       const sections: string[] = []
       if (baseline.length > 0) {
         sections.push(`## Baseline Resume\n\n${formatChunksForPrompt(baseline)}`)
@@ -67,21 +78,6 @@ export async function executeTool(
         sections.push(`## Relevant Case Studies & Other Content\n\n${formatChunksForPrompt(supplementary)}`)
       }
       return sections.join('\n\n')
-    }
-
-    case 'notify_owner': {
-      const jobTitle = input.job_title as string | undefined
-      const company = input.company as string | undefined
-      const fitSummary = input.fit_summary as string
-      console.log('[folio-ai job-fit]', JSON.stringify({
-        timestamp: new Date().toISOString(),
-        visitor: session?.user?.name ?? 'Unknown',
-        visitorEmail: session?.user?.email ?? null,
-        jobTitle: jobTitle ?? null,
-        company: company ?? null,
-        fitSummary,
-      }))
-      return 'Owner notified.'
     }
 
     case 'schedule_meeting': {

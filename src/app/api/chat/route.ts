@@ -27,6 +27,22 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
+function toolStatusLabel(name: string, input: Record<string, unknown>): string {
+  switch (name) {
+    case 'analyze_job_fit': {
+      const title = input.job_title as string | undefined
+      const company = input.company as string | undefined
+      if (title && company) return `Analyzing fit for ${title} at ${company}…`
+      if (title) return `Analyzing fit for ${title}…`
+      return 'Analyzing job fit…'
+    }
+    case 'schedule_meeting': return 'Generating booking link…'
+    case 'send_note':       return 'Sending note…'
+    case 'take_note':       return 'Saving note…'
+    default:                return `Running ${name}…`
+  }
+}
+
 export async function POST(req: NextRequest) {
   const ip =
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
@@ -76,7 +92,7 @@ export async function POST(req: NextRequest) {
     for (let iter = 0; iter < 5; iter++) {
       const stream = anthropic.messages.stream({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
+        max_tokens: 4096,
         system,
         tools,
         messages,
@@ -107,6 +123,9 @@ export async function POST(req: NextRequest) {
 
         const results: Anthropic.ToolResultBlockParam[] = []
         for (const t of toolUses) {
+          const label = toolStatusLabel(t.name, t.input as Record<string, unknown>)
+          yield `data: ${JSON.stringify({ tool: label })}\n\n`
+
           const result = await executeTool(
             t.name,
             t.input as Record<string, unknown>,
@@ -115,6 +134,7 @@ export async function POST(req: NextRequest) {
           results.push({ type: 'tool_result', tool_use_id: t.id, content: result })
         }
 
+        yield `data: ${JSON.stringify({ tool: null })}\n\n`
         messages = [...messages, { role: 'user', content: results }]
         continue
       }

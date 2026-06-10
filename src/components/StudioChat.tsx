@@ -147,11 +147,23 @@ export default function StudioChat() {
     setUploadMessage('')
 
     try {
-      const content = await file.text()
+      const name = file.name.toLowerCase()
+      const isBinary = name.endsWith('.pdf') || name.endsWith('.docx')
+      let content: string
+      let fileType: 'text' | 'pdf' | 'docx'
+      if (isBinary) {
+        const buffer = await file.arrayBuffer()
+        content = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+        fileType = name.endsWith('.docx') ? 'docx' : 'pdf'
+      } else {
+        content = await file.text()
+        fileType = 'text'
+      }
+
       const res = await fetch('/api/studio/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, content }),
+        body: JSON.stringify({ filename: file.name, content, fileType, type: 'resume', isBaseline: true }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
@@ -161,7 +173,6 @@ export default function StudioChat() {
       setUploadStatus('error')
       setUploadMessage(err instanceof Error ? err.message : 'Upload failed')
     } finally {
-      // Reset input so the same file can be re-uploaded after edits
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -210,7 +221,7 @@ export default function StudioChat() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".md,.txt"
+            accept=".md,.txt,.pdf,.docx"
             onChange={handleFileUpload}
             disabled={uploadStatus === 'uploading'}
             className="hidden"
@@ -224,7 +235,7 @@ export default function StudioChat() {
                 : 'border-zinc-600 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400'
             }`}
           >
-            {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload .md or .txt'}
+            {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload .md, .txt, .pdf or .docx'}
           </label>
           {uploadMessage && (
             <span className={`text-xs truncate ${uploadStatus === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>

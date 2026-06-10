@@ -13,8 +13,8 @@ export type DocumentChunk = {
 export async function retrieveRelevant(
   query: string,
   ownerId = process.env.OWNER_ID ?? 'default',
-  limit = 5,
-  threshold = 0.5,
+  limit = 8,
+  threshold = 0.3,
   excludeTypes: string[] = ['job-req'],
 ): Promise<DocumentChunk[]> {
   const embedding = await embed(query)

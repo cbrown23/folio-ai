@@ -5,52 +5,16 @@ import { useState, useRef, useEffect } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import Image from 'next/image'
 
+type AttachedFile = { name: string; text: string }
+
 type Message = {
   role: 'user' | 'assistant'
   content: string
+  toolStatus?: string | null
 }
 
 function MessageContent({ content }: { content: string }) {
-  const resumeMatch = content.match(/^([\s\S]*?)<resume>([\s\S]*?)<\/resume>([\s\S]*)$/)
-  if (!resumeMatch) {
-    return <span className="whitespace-pre-wrap">{content}</span>
-  }
-
-  const [, before, resumeContent, after] = resumeMatch
-
-  function downloadResume() {
-    const blob = new Blob([resumeContent.trim()], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'resume.txt'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  return (
-    <>
-      {before && <span className="whitespace-pre-wrap">{before}</span>}
-      <div className="mt-2 rounded-lg border border-indigo-700/50 bg-indigo-950/40 overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-indigo-700/40 bg-indigo-900/30">
-          <span className="text-xs font-medium text-indigo-300">Tailored Resume</span>
-          <button
-            onClick={downloadResume}
-            className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-200 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download .txt
-          </button>
-        </div>
-        <pre className="px-3 py-2 text-xs text-slate-300 whitespace-pre-wrap font-mono overflow-x-auto max-h-48 overflow-y-auto">
-          {resumeContent.trim()}
-        </pre>
-      </div>
-      {after && <span className="whitespace-pre-wrap">{after}</span>}
-    </>
-  )
+  return <span className="whitespace-pre-wrap">{content}</span>
 }
 
 export default function ChatButton() {
@@ -60,8 +24,12 @@ export default function ChatButton() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [attached, setAttached] = useState<AttachedFile | null>(null)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [attachError, setAttachError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { data: session } = useSession()
 
   useEffect(() => {
@@ -76,12 +44,71 @@ export default function ChatButton() {
     }
   }, [open])
 
-  async function sendMessage() {
-    if (!input.trim() || isLoading) return
-    const text = input.trim()
-    setInput('')
+  // Auto-resize textarea
+  useEffect(() => {
+    const ta = inputRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = `${Math.min(ta.scrollHeight, 96)}px`
+  }, [input])
 
-    const newMessages: Message[] = [...messages, { role: 'user', content: text }]
+  async function handleFileAttach(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setAttachError(null)
+    setIsExtracting(true)
+
+    try {
+      const name = file.name.toLowerCase()
+      let text: string
+
+      if (name.endsWith('.txt') || name.endsWith('.md')) {
+        text = await file.text()
+      } else {
+        const buffer = await file.arrayBuffer()
+        const content = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+        const fileType = name.endsWith('.docx') ? 'docx' : 'pdf'
+        const res = await fetch('/api/chat/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, fileType }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+        text = data.text
+      }
+
+      setAttached({ name: file.name, text })
+    } catch (err) {
+      setAttachError(err instanceof Error ? err.message : 'Could not read file')
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
+  async function sendMessage() {
+    if ((!input.trim() && !attached) || isLoading) return
+
+    const userText = input.trim()
+    const content = attached
+      ? userText
+        ? `${userText}\n\n[Attached: ${attached.name}]\n${attached.text}`
+        : `[Attached: ${attached.name}]\n${attached.text}`
+      : userText
+
+    // Display a compact version — don't flood the chat with the full file
+    const displayContent = attached
+      ? userText
+        ? `${userText}\n\n📎 ${attached.name}`
+        : `📎 ${attached.name}`
+      : userText
+
+    setInput('')
+    setAttached(null)
+    setAttachError(null)
+
+    const newMessages: Message[] = [...messages, { role: 'user', content: displayContent }]
     setMessages(newMessages)
     setIsLoading(true)
 
@@ -89,12 +116,14 @@ export default function ChatButton() {
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
 
     try {
+      // Send real content (with file text) to API, but display compact version in UI
+      const apiMessages = newMessages.map((m, i) =>
+        i === newMessages.length - 1 ? { role: m.role, content } : { role: m.role, content: m.content }
+      )
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
+        body: JSON.stringify({ messages: apiMessages }),
       })
 
       if (!res.ok || !res.body) {
@@ -135,6 +164,17 @@ export default function ChatButton() {
               updated[updated.length - 1] = {
                 role: 'assistant',
                 content: assistantText,
+                toolStatus: null,
+              }
+              return updated
+            })
+          }
+          if (parsed && 'tool' in parsed) {
+            setMessages((prev) => {
+              const updated = [...prev]
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                toolStatus: parsed.tool as string | null,
               }
               return updated
             })
@@ -155,7 +195,7 @@ export default function ChatButton() {
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
@@ -252,6 +292,9 @@ export default function ChatButton() {
                       : 'bg-slate-800 text-slate-200 border border-slate-700/50'
                   }`}
                 >
+                  {msg.toolStatus && (
+                    <div className="text-xs text-indigo-400 mb-1.5 italic">{msg.toolStatus}</div>
+                  )}
                   {msg.content ? (
                     <MessageContent content={msg.content} />
                   ) : (
@@ -278,38 +321,75 @@ export default function ChatButton() {
 
           {/* Input */}
           <div className="shrink-0 border-t border-slate-700">
+            {/* Attached file badge */}
+            {attached && (
+              <div className="px-4 pt-2 flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-950/60 border border-indigo-700/50 text-xs text-indigo-300 max-w-full">
+                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  <span className="truncate">{attached.name}</span>
+                  <button onClick={() => setAttached(null)} className="ml-1 text-indigo-400 hover:text-white shrink-0" aria-label="Remove attachment">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+            {attachError && (
+              <p className="px-4 pt-1.5 text-xs text-red-400">{attachError}</p>
+            )}
             <div className="px-4 py-3">
-              <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 focus-within:border-indigo-600 transition-colors">
+              <div className="flex items-end gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 focus-within:border-indigo-600 transition-colors">
+                {/* Attachment button */}
                 <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.md,.pdf,.docx"
+                  onChange={handleFileAttach}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || isExtracting}
+                  className="text-slate-500 hover:text-slate-300 disabled:text-slate-700 transition-colors shrink-0 mb-0.5"
+                  aria-label="Attach file"
+                  title="Attach .txt, .pdf, or .docx"
+                >
+                  {isExtracting ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  )}
+                </button>
+                <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything..."
+                  placeholder={attached ? 'Add a message or just send…' : 'Ask me anything…'}
                   disabled={isLoading}
-                  className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none disabled:opacity-50"
+                  rows={1}
+                  className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none disabled:opacity-50 resize-none leading-5"
                 />
                 <button
                   onClick={sendMessage}
-                  disabled={!input.trim() || isLoading}
-                  className="text-indigo-400 hover:text-indigo-300 disabled:text-slate-600 transition-colors"
+                  disabled={(!input.trim() && !attached) || isLoading}
+                  className="text-indigo-400 hover:text-indigo-300 disabled:text-slate-600 transition-colors shrink-0 mb-0.5"
                   aria-label="Send"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
                 </button>
               </div>
+              <p className="text-xs text-slate-600 mt-1.5">Shift+Enter for new line · attach .txt .pdf .docx</p>
             </div>
           </div>
             </>
