@@ -40,6 +40,11 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get('x-cal-signature-256')
 
   if (!verifySignature(rawBody, signature)) {
+    console.log('[folio-ai webhook-debug]', JSON.stringify({
+      hasSecret: !!process.env.CAL_WEBHOOK_SECRET,
+      hasHeader: !!signature,
+      headerValue: signature?.slice(0, 20) ?? null,
+    }))
     return Response.json({ error: 'invalid_signature' }, { status: 401 })
   }
 
