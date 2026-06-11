@@ -214,8 +214,8 @@ export async function executeStudioTool(
           MIN(created_at) OVER (PARTITION BY source) AS created_at
         FROM documents
         WHERE owner_id = ${ownerId}
-          AND (${typeFilter ?? null} IS NULL OR type = ${typeFilter ?? null})
-          AND (${since ?? null} IS NULL OR created_at >= ${since ?? null}::timestamptz)
+          AND (${typeFilter ?? null}::text IS NULL OR type = ${typeFilter ?? null}::text)
+          AND (${since ?? null}::text IS NULL OR created_at >= ${since ?? null}::timestamptz)
         ORDER BY source, created_at DESC
       `
 
