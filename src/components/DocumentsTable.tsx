@@ -45,6 +45,7 @@ export default function DocumentsTable() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   // Upload form state
   const [showUpload, setShowUpload] = useState(false)
@@ -114,6 +115,41 @@ export default function DocumentsTable() {
     } catch (err) {
       setUploadState('error')
       setUploadMsg(err instanceof Error ? err.message : 'Upload failed')
+    }
+  }
+
+  async function handleExportAll() {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/studio/export')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `folio-export-${new Date().toISOString().slice(0, 10)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleDownloadOne(source: string) {
+    try {
+      const res = await fetch(`/api/studio/export?source=${encodeURIComponent(source)}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = (source.split('/').pop() ?? 'document') + '.md'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed')
     }
   }
 
@@ -236,16 +272,26 @@ export default function DocumentsTable() {
         <span className="text-xs text-zinc-500">
           {docs.length} document{docs.length !== 1 ? 's' : ''} · {docs.reduce((n, d) => n + d.chunk_count, 0)} chunks
         </span>
-        <button
-          onClick={() => { setShowUpload((v) => !v); setUploadState('idle'); setUploadMsg('') }}
-          className={`text-xs px-3 py-1.5 rounded border transition-colors ${
-            showUpload
-              ? 'border-indigo-500 text-indigo-400 bg-indigo-950/40'
-              : 'border-zinc-600 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400'
-          }`}
-        >
-          {showUpload ? 'Cancel' : '+ Upload'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportAll}
+            disabled={exporting || docs.length === 0}
+            className="text-xs px-3 py-1.5 rounded border border-zinc-600 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Download all content as a ZIP of Markdown files"
+          >
+            {exporting ? 'Exporting…' : '↓ Export all'}
+          </button>
+          <button
+            onClick={() => { setShowUpload((v) => !v); setUploadState('idle'); setUploadMsg('') }}
+            className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+              showUpload
+                ? 'border-indigo-500 text-indigo-400 bg-indigo-950/40'
+                : 'border-zinc-600 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400'
+            }`}
+          >
+            {showUpload ? 'Cancel' : '+ Upload'}
+          </button>
+        </div>
       </div>
 
       {/* Inline upload form */}
@@ -309,19 +355,28 @@ export default function DocumentsTable() {
                       {date}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(doc.source) }}
-                        disabled={isDeleting}
-                        className={`text-xs px-3 py-1 rounded transition-colors ${
-                          isDeleting
-                            ? 'text-zinc-600 cursor-not-allowed'
-                            : isConfirming
-                              ? 'bg-red-600 hover:bg-red-500 text-white'
-                              : 'text-zinc-500 hover:text-red-400 border border-transparent hover:border-red-800'
-                        }`}
-                      >
-                        {isDeleting ? 'Deleting…' : isConfirming ? 'Confirm delete' : 'Delete'}
-                      </button>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDownloadOne(doc.source) }}
+                          className="text-xs px-3 py-1 rounded border border-transparent text-zinc-500 hover:text-emerald-400 hover:border-emerald-800 transition-colors"
+                          title="Download as Markdown"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(doc.source) }}
+                          disabled={isDeleting}
+                          className={`text-xs px-3 py-1 rounded transition-colors ${
+                            isDeleting
+                              ? 'text-zinc-600 cursor-not-allowed'
+                              : isConfirming
+                                ? 'bg-red-600 hover:bg-red-500 text-white'
+                                : 'text-zinc-500 hover:text-red-400 border border-transparent hover:border-red-800'
+                          }`}
+                        >
+                          {isDeleting ? 'Deleting…' : isConfirming ? 'Confirm delete' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
