@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 type Role = 'user' | 'assistant'
 
@@ -17,15 +17,23 @@ Options:
 - **Case study** — walk me through a project and I'll structure it into a portfolio piece
 - **Journal entry** — share a technical opinion or lesson learned
 - **Bio/resume update** — update your professional summary
+- **Connection** — record a profile for someone who may visit the site (nickname, relationship, notes)
+- **Memory** — capture a career moment involving a specific person so they'll see it referenced when they visit
 
 What's on your mind?`
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error'
 
-export default function StudioChat() {
+type Props = {
+  restoredConversation?: { id: string; title: string; messages: Array<{ role: Role; content: string }> } | null
+  onNewConversation?: () => void
+}
+
+export default function StudioChat({ restoredConversation, onNewConversation }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'greeting', role: 'assistant', content: GREETING },
   ])
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
@@ -34,17 +42,64 @@ export default function StudioChat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Restore a saved conversation when the prop changes
+  useEffect(() => {
+    if (!restoredConversation) return
+    const restored: Message[] = restoredConversation.messages.map((m) => ({
+      id: crypto.randomUUID(),
+      role: m.role,
+      content: m.content,
+    }))
+    setMessages(restored.length > 0 ? restored : [{ id: 'greeting', role: 'assistant', content: GREETING }])
+    setConversationId(restoredConversation.id)
+  }, [restoredConversation])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current
     if (!ta) return
     ta.style.height = 'auto'
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`
   }, [input])
+
+  const saveConversation = useCallback(async (msgs: Message[], existingId: string | null) => {
+    const saveable = msgs.filter((m) => m.id !== 'greeting' && m.content.trim())
+    if (saveable.length === 0) return existingId
+
+    const firstUser = saveable.find((m) => m.role === 'user')
+    const title = firstUser
+      ? firstUser.content.slice(0, 80).replace(/\n/g, ' ').trim()
+      : 'Untitled'
+
+    const payload = {
+      id: existingId ?? undefined,
+      title,
+      messages: saveable.map((m) => ({ role: m.role, content: m.content })),
+    }
+
+    try {
+      const res = await fetch('/api/studio/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) return existingId
+      const data = await res.json()
+      return data.id as string
+    } catch {
+      return existingId
+    }
+  }, [])
+
+  function startNewConversation() {
+    setMessages([{ id: 'greeting', role: 'assistant', content: GREETING }])
+    setConversationId(null)
+    setInput('')
+    onNewConversation?.()
+  }
 
   async function sendMessage() {
     const text = input.trim()
@@ -62,11 +117,10 @@ export default function StudioChat() {
       { id: assistantId, role: 'assistant', content: '', toolStatus: undefined },
     ])
 
+    let finalMessages: Message[] = []
+
     try {
-      const apiMessages = newMessages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }))
+      const apiMessages = newMessages.map((m) => ({ role: m.role, content: m.content }))
 
       const res = await fetch('/api/studio/chat', {
         method: 'POST',
@@ -99,13 +153,15 @@ export default function StudioChat() {
             const parsed = JSON.parse(payload)
 
             if (parsed.delta) {
-              setMessages((prev) =>
-                prev.map((m) =>
+              setMessages((prev) => {
+                const updated = prev.map((m) =>
                   m.id === assistantId
                     ? { ...m, content: m.content + parsed.delta, toolStatus: undefined }
                     : m,
-                ),
-              )
+                )
+                finalMessages = updated
+                return updated
+              })
             }
 
             if (parsed.tool) {
@@ -116,9 +172,7 @@ export default function StudioChat() {
               )
             }
 
-            if (parsed.error) {
-              throw new Error(parsed.error)
-            }
+            if (parsed.error) throw new Error(parsed.error)
           } catch (parseErr) {
             if (parseErr instanceof SyntaxError) continue
             throw parseErr
@@ -136,6 +190,11 @@ export default function StudioChat() {
       )
     } finally {
       setIsLoading(false)
+      // Auto-save after each complete exchange
+      if (finalMessages.length > 0) {
+        const savedId = await saveConversation(finalMessages, conversationId)
+        if (savedId && savedId !== conversationId) setConversationId(savedId)
+      }
     }
   }
 
@@ -186,6 +245,19 @@ export default function StudioChat() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Conversation toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/60 shrink-0">
+        <span className="text-xs text-zinc-500">
+          {conversationId ? 'Auto-saving' : 'New conversation'}
+        </span>
+        <button
+          onClick={startNewConversation}
+          className="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
+        >
+          + New
+        </button>
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.map((msg) => (

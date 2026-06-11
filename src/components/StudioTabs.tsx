@@ -3,17 +3,34 @@
 import { useState } from 'react'
 import StudioChat from './StudioChat'
 import DocumentsTable from './DocumentsTable'
+import ConversationHistory, { type StoredConversation } from './ConversationHistory'
 
-type Tab = 'chat' | 'documents'
+type Tab = 'chat' | 'documents' | 'history'
+
+type RestoredConversation = {
+  id: string
+  title: string
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+} | null
 
 export default function StudioTabs() {
   const [active, setActive] = useState<Tab>('chat')
+  const [restoredConversation, setRestoredConversation] = useState<RestoredConversation>(null)
+
+  function handleRestore(conv: StoredConversation) {
+    setRestoredConversation({
+      id: conv.id,
+      title: conv.title,
+      messages: (conv.messages ?? []) as Array<{ role: 'user' | 'assistant'; content: string }>,
+    })
+    setActive('chat')
+  }
 
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
       <div className="flex border-b border-zinc-800 bg-zinc-900/60 px-4 shrink-0">
-        {(['chat', 'documents'] as Tab[]).map((tab) => (
+        {(['chat', 'history', 'documents'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActive(tab)}
@@ -30,7 +47,16 @@ export default function StudioTabs() {
 
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
-        {active === 'chat' ? <StudioChat /> : <DocumentsTable />}
+        {active === 'chat' && (
+          <StudioChat
+            restoredConversation={restoredConversation}
+            onNewConversation={() => setRestoredConversation(null)}
+          />
+        )}
+        {active === 'history' && (
+          <ConversationHistory onRestore={handleRestore} />
+        )}
+        {active === 'documents' && <DocumentsTable />}
       </div>
     </div>
   )
