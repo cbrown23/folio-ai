@@ -84,17 +84,23 @@ export default function Home() {
           <p className="text-sm text-slate-500">
             © {new Date().getFullYear()} {config.owner.name}
           </p>
-          <p className="text-xs text-slate-600">
-            Built with{' '}
-            <a
-              href="https://github.com/creativecloudnative/folio-ai"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Logo className="text-xs hover:opacity-80 transition-opacity" />
-            </a>{' '}
-            — open source template
-          </p>
+          <div className="flex items-center gap-4 text-xs text-slate-600">
+            <a href="/privacy" className="hover:text-slate-400 transition-colors">
+              Privacy policy
+            </a>
+            <span>·</span>
+            <span>
+              Built with{' '}
+              <a
+                href="https://github.com/creativecloudnative/folio-ai"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Logo className="text-xs hover:opacity-80 transition-opacity inline" />
+              </a>{' '}
+              — open source template
+            </span>
+          </div>
         </div>
       </footer>
 

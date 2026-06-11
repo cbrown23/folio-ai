@@ -304,6 +304,12 @@ export default function ChatButton() {
                 <LinkedInIcon className="w-4 h-4" />
                 Sign in with LinkedIn
               </button>
+              <p className="text-xs text-slate-600 max-w-[220px]">
+                We only use your name and email to identify you.{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-400 transition-colors">
+                  Privacy policy
+                </a>
+              </p>
             </div>
           ) : (
             <>
