@@ -107,6 +107,44 @@ export async function executeStudioTool(
       return `Connection profile for ${name} saved (${chunks} chunk${chunks !== 1 ? 's' : ''}). The chat agent will use this when ${nickname ?? name} visits using ${email}.`
     }
 
+    case 'get_document': {
+      const source = input.source as string
+
+      const rows = await sql`
+        SELECT type, title, content, metadata, created_at
+        FROM documents
+        WHERE owner_id = ${ownerId}
+          AND source = ${source}
+        ORDER BY created_at ASC
+      `
+
+      if (rows.length === 0) {
+        return `No document found with source "${source}". Use list_content to see available sources.`
+      }
+
+      // Concatenate chunks in insertion order (ASC) to reconstruct chunked docs
+      const first = rows[0]
+      const type = first.type as string
+      const title = first.title as string
+      const createdAt = new Date(first.created_at as string).toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric',
+      })
+      const fullContent = (rows as Array<{ content: string }>).map((r) => r.content).join('\n\n')
+
+      const meta = (first.metadata as Record<string, unknown>) ?? {}
+      const metaLines: string[] = []
+      if (meta.visit_count !== undefined) metaLines.push(`**Visit count**: ${meta.visit_count}`)
+      if (meta.last_seen) {
+        const d = new Date(meta.last_seen as string).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        metaLines.push(`**Last seen**: ${d}`)
+      }
+      if (meta.is_baseline) metaLines.push('**Baseline**: yes')
+
+      const header = `**Type**: ${type} | **Created**: ${createdAt}${metaLines.length ? '\n' + metaLines.join(' | ') : ''}`
+
+      return `${header}\n\n---\n\n${fullContent}`
+    }
+
     case 'get_connection': {
       const email = input.email as string
 

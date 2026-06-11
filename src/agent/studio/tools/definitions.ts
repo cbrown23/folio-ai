@@ -112,6 +112,21 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_document',
+    description:
+      'Retrieve the full content of any document from the database by its source path. Use list_content first to find the source path, then call this to read the full text — useful for reviewing, editing, or displaying any existing portfolio document, connection profile, memory, resume, etc.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        source: {
+          type: 'string',
+          description: 'The source path of the document, e.g. "connection/leslie-watson" or "content/resume.md"',
+        },
+      },
+      required: ['source'],
+    },
+  },
+  {
     name: 'get_connection',
     description:
       'Retrieve the full connection profile for a person by their email address, including visit history (visit count, last seen date) and any notes saved by the owner. Use this to inspect what the chat agent knows about a specific visitor before deciding whether to update their profile.',
