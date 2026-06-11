@@ -2,13 +2,13 @@ import { sql } from '@/lib/db'
 import { ingestDocument } from '@/lib/ingest'
 import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
 
-type DocType = 'case-study' | 'journal' | 'bio' | 'resume' | 'memory' | 'adr' | 'diagram'
+type DocType = 'case-study' | 'architecture' | 'journal' | 'bio' | 'resume' | 'memory' | 'adr' | 'diagram'
 
 export async function executeStudioTool(
   name: string,
   input: Record<string, unknown>,
+  ownerId: string,
 ): Promise<string> {
-  const ownerId = process.env.OWNER_ID ?? 'default'
 
   switch (name) {
     case 'save_content': {
@@ -18,9 +18,10 @@ export async function executeStudioTool(
       const content = input.content as string
 
       const relPath =
-        type === 'case-study' ? `case-studies/${slug}.md`
-        : type === 'journal'  ? `journal/${slug}.md`
-        : type === 'adr'      ? `adrs/${slug}.md`
+        type === 'case-study'   ? `case-studies/${slug}.md`
+        : type === 'architecture' ? `architecture/${slug}.md`
+        : type === 'journal'    ? `journal/${slug}.md`
+        : type === 'adr'        ? `adrs/${slug}.md`
         : `${type}.md`
 
       const source = `content/${relPath}`

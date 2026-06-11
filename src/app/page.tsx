@@ -1,6 +1,9 @@
+export const revalidate = 300
+
 import Nav from '@/components/Nav'
 import Hero from '@/components/Hero'
 import CaseStudies from '@/components/CaseStudies'
+import Architecture from '@/components/Architecture'
 import ChatButton from '@/components/ChatButton'
 import Logo from '@/components/Logo'
 import config from '../../folio.config'
@@ -12,6 +15,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <CaseStudies />
+        <Architecture />
 
         {/* About stub */}
         <section id="about" className="py-24 border-t border-slate-800/60">

@@ -1,14 +1,4 @@
 import config from '../../../folio.config'
-import { readFileSync } from 'fs'
-import { join } from 'path'
-
-function loadContent(filename: string): string {
-  try {
-    return readFileSync(join(process.cwd(), 'content', filename), 'utf-8').trim()
-  } catch {
-    return ''
-  }
-}
 
 export function buildSystemPrompt(
   visitorName?: string | null,
@@ -17,15 +7,9 @@ export function buildSystemPrompt(
   baselineResume?: string,
   visitorConnection?: string,
 ): string {
-  const bio = loadContent(config.content.bioFile)
-  const resumeFile = loadContent(config.content.resumeFile)
+  const resume = baselineResume
 
-  // Prefer the DB-sourced baseline resume (always current); fall back to file
-  const resume = baselineResume || resumeFile
-
-  const bioSection =
-    bio ||
-    `${config.owner.name} is a ${config.owner.title} based in ${config.owner.location}.`
+  const bioSection = `${config.owner.name} is a ${config.owner.title} based in ${config.owner.location}.`
 
   return `You are ${config.agent.assistantName}, the AI assistant on ${config.owner.name}'s portfolio site (${config.site.url}).
 

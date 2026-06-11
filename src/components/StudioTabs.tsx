@@ -13,7 +13,13 @@ type RestoredConversation = {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
 } | null
 
-export default function StudioTabs() {
+type TokenBalance = { budget: number; used: number; remaining: number }
+
+type Props = {
+  initialBalance?: TokenBalance | null
+}
+
+export default function StudioTabs({ initialBalance }: Props) {
   const [active, setActive] = useState<Tab>('chat')
   const [restoredConversation, setRestoredConversation] = useState<RestoredConversation>(null)
 
@@ -51,6 +57,7 @@ export default function StudioTabs() {
           <StudioChat
             restoredConversation={restoredConversation}
             onNewConversation={() => setRestoredConversation(null)}
+            initialBalance={initialBalance}
           />
         )}
         {active === 'history' && (

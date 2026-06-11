@@ -9,17 +9,19 @@ type Doc = {
   submitted_by: string | null
   chunk_count: number
   is_baseline: boolean
+  is_published: boolean
   created_at: string
 }
 
-type DocType = 'bio' | 'resume' | 'case-study' | 'journal' | 'memory' | 'job-req' | 'connection' | 'diagram' | 'adr'
+type DocType = 'bio' | 'resume' | 'case-study' | 'architecture' | 'journal' | 'memory' | 'job-req' | 'connection' | 'diagram' | 'adr'
 
-const DOC_TYPES: DocType[] = ['bio', 'resume', 'case-study', 'journal', 'adr', 'diagram', 'memory', 'job-req', 'connection']
+const DOC_TYPES: DocType[] = ['bio', 'resume', 'case-study', 'architecture', 'journal', 'adr', 'diagram', 'memory', 'job-req', 'connection']
 
 const TYPE_COLORS: Record<string, string> = {
   'bio':          'bg-sky-900/50 text-sky-300 border-sky-700/50',
   'resume':       'bg-violet-900/50 text-violet-300 border-violet-700/50',
   'case-study':   'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
+  'architecture': 'bg-indigo-900/50 text-indigo-300 border-indigo-700/50',
   'journal':      'bg-amber-900/50 text-amber-300 border-amber-700/50',
   'job-req':      'bg-rose-900/50 text-rose-300 border-rose-700/50',
   'memory':       'bg-pink-900/50 text-pink-300 border-pink-700/50',
@@ -46,6 +48,7 @@ export default function DocumentsTable() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [publishing, setPublishing] = useState<string | null>(null)
 
   // Upload form state
   const [showUpload, setShowUpload] = useState(false)
@@ -150,6 +153,25 @@ export default function DocumentsTable() {
       URL.revokeObjectURL(url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed')
+    }
+  }
+
+  async function handlePublish(source: string, publish: boolean) {
+    setPublishing(source)
+    try {
+      const res = await fetch(`/api/studio/documents?source=${encodeURIComponent(source)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: publish }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setDocs((prev) =>
+        prev.map((d) => (d.source === source ? { ...d, is_published: publish } : d)),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Publish failed')
+    } finally {
+      setPublishing(null)
     }
   }
 
@@ -320,9 +342,14 @@ export default function DocumentsTable() {
               {docs.map((doc) => {
                 const isDeleting = deleting === doc.source
                 const isConfirming = confirmDelete === doc.source
+                const isPublishing = publishing === doc.source
                 const date = new Date(doc.created_at).toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', year: 'numeric',
                 })
+                const isPublishable = doc.type === 'case-study' || doc.type === 'architecture'
+                const liveHref = doc.type === 'case-study'
+                  ? `/case-studies/${doc.source.replace('content/case-studies/', '').replace('.md', '')}`
+                  : `/architecture/${doc.source.replace('content/architecture/', '').replace('.md', '')}`
 
                 return (
                   <tr
@@ -334,7 +361,19 @@ export default function DocumentsTable() {
                       <TypeBadge type={doc.type} />
                     </td>
                     <td className="px-4 py-3 text-zinc-100 max-w-[200px] truncate" title={doc.title}>
-                      {doc.title}
+                      <span>{doc.title}</span>
+                      {isPublishable && doc.is_published && (
+                        <a
+                          href={liveHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="ml-2 inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800/60 transition-colors"
+                          title="View live page"
+                        >
+                          live ↗
+                        </a>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-zinc-400 font-mono text-xs max-w-[220px] truncate" title={doc.source}>
                       {doc.source}
@@ -355,7 +394,23 @@ export default function DocumentsTable() {
                       {date}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex gap-2 justify-end items-center">
+                        {isPublishable && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handlePublish(doc.source, !doc.is_published) }}
+                            disabled={isPublishing}
+                            className={`text-xs px-3 py-1 rounded border transition-colors ${
+                              isPublishing
+                                ? 'text-zinc-600 border-transparent cursor-not-allowed'
+                                : doc.is_published
+                                  ? 'text-amber-400 border-amber-800/50 hover:text-amber-300 hover:border-amber-700'
+                                  : 'text-emerald-400 border-emerald-800/50 hover:text-emerald-300 hover:border-emerald-700'
+                            }`}
+                            title={doc.is_published ? 'Unpublish from portfolio' : 'Publish to portfolio'}
+                          >
+                            {isPublishing ? '…' : doc.is_published ? 'Unpublish' : 'Publish'}
+                          </button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDownloadOne(doc.source) }}
                           className="text-xs px-3 py-1 rounded border border-transparent text-zinc-500 hover:text-emerald-400 hover:border-emerald-800 transition-colors"

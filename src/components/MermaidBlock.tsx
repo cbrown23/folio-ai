@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useId } from 'react'
 
 type Props = {
   code: string
+  title?: string
 }
 
-export default function MermaidBlock({ code }: Props) {
+export default function MermaidBlock({ code, title }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const uid = useId().replace(/:/g, '')
@@ -60,6 +61,21 @@ export default function MermaidBlock({ code }: Props) {
     return () => { cancelled = true }
   }, [code, uid])
 
+  function downloadSVG() {
+    const svgEl = containerRef.current?.querySelector('svg')
+    if (!svgEl) return
+    const serialized = new XMLSerializer().serializeToString(svgEl)
+    const blob = new Blob([serialized], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = title
+      ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.svg'
+      : 'diagram.svg'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (error) {
     return (
       <div className="my-2 rounded-lg border border-red-800/50 bg-red-950/20 p-3">
@@ -70,9 +86,18 @@ export default function MermaidBlock({ code }: Props) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="my-3 flex justify-start overflow-x-auto rounded-lg bg-zinc-900/60 p-3 border border-zinc-700/50"
-    />
+    <div className="relative group my-3">
+      <div
+        ref={containerRef}
+        className="flex justify-start overflow-x-auto rounded-lg bg-zinc-900/60 p-3 border border-zinc-700/50"
+      />
+      <button
+        onClick={downloadSVG}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-400"
+        title="Download as SVG"
+      >
+        ↓ SVG
+      </button>
+    </div>
   )
 }

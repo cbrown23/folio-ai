@@ -69,12 +69,15 @@ What's on your mind?`
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error'
 
+type TokenBalance = { budget: number; used: number; remaining: number }
+
 type Props = {
   restoredConversation?: { id: string; title: string; messages: Array<{ role: Role; content: string }> } | null
   onNewConversation?: () => void
+  initialBalance?: TokenBalance | null
 }
 
-export default function StudioChat({ restoredConversation, onNewConversation }: Props) {
+export default function StudioChat({ restoredConversation, onNewConversation, initialBalance }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'greeting', role: 'assistant', content: GREETING },
   ])
@@ -83,6 +86,7 @@ export default function StudioChat({ restoredConversation, onNewConversation }: 
   const [isLoading, setIsLoading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
   const [uploadMessage, setUploadMessage] = useState('')
+  const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(initialBalance ?? null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -175,7 +179,12 @@ export default function StudioChat({ restoredConversation, onNewConversation }: 
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? `HTTP ${res.status}`)
+        if (res.status === 402 && err.budget) setTokenBalance(err.budget as TokenBalance)
+        throw new Error(
+          res.status === 402
+            ? 'Token budget exhausted. No tokens remaining for this folio.'
+            : (err.error ?? `HTTP ${res.status}`),
+        )
       }
 
       const reader = res.body!.getReader()
@@ -215,6 +224,10 @@ export default function StudioChat({ restoredConversation, onNewConversation }: 
                   m.id === assistantId ? { ...m, toolStatus: parsed.tool } : m,
                 ),
               )
+            }
+
+            if (parsed.budget) {
+              setTokenBalance(parsed.budget as TokenBalance)
             }
 
             if (parsed.error) throw new Error(parsed.error)
@@ -295,12 +308,31 @@ export default function StudioChat({ restoredConversation, onNewConversation }: 
         <span className="text-xs text-zinc-500">
           {conversationId ? 'Auto-saving' : 'New conversation'}
         </span>
-        <button
-          onClick={startNewConversation}
-          className="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
-        >
-          + New
-        </button>
+        <div className="flex items-center gap-3">
+          {tokenBalance && (
+            <div className="flex items-center gap-2">
+              <div className="w-24 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    tokenBalance.remaining / tokenBalance.budget > 0.2
+                      ? 'bg-indigo-500'
+                      : 'bg-amber-500'
+                  }`}
+                  style={{ width: `${Math.max(0, (tokenBalance.remaining / tokenBalance.budget) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-zinc-500">
+                {(tokenBalance.remaining / 1000).toFixed(0)}k left
+              </span>
+            </div>
+          )}
+          <button
+            onClick={startNewConversation}
+            className="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
+          >
+            + New
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

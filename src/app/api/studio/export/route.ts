@@ -1,35 +1,25 @@
 import { auth } from '@/auth'
 import { sql } from '@/lib/db'
 import { zipSync, strToU8 } from 'fflate'
-import config from '../../../../../folio.config'
 
 export const dynamic = 'force-dynamic'
 
-function isOwner(email?: string | null) {
-  return !!email && email === (process.env.OWNER_EMAIL ?? config.owner.email)
-}
-
-// Map a source path to a ZIP-relative file path
 function sourceToFilePath(source: string, type: string): string {
-  // source is already a logical path like "content/case-studies/foo.md" or "diagrams/bar"
-  // For sources without an extension, add .md
   if (source.includes('.')) return source
-  // Diagrams stored as "diagrams/slug" — add .md
   if (type === 'diagram') return `${source}.md`
-  // Memory/connection stored as "memory/slug" or "connection/slug"
   return `${source}.md`
 }
 
 export async function GET(req: Request) {
   const session = await auth()
-  if (!session?.user || !isOwner(session.user.email)) {
-    return new Response('Forbidden', { status: 403 })
+  if (!session?.user?.id) {
+    return new Response('Unauthorized', { status: 401 })
   }
 
   const url = new URL(req.url)
   const sourceParam = url.searchParams.get('source')
 
-  const ownerId = process.env.OWNER_ID ?? 'default'
+  const ownerId = session.user.id
 
   // Fetch documents — optionally filtered to a single source
   const rows = sourceParam

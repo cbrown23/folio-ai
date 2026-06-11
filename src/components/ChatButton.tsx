@@ -46,7 +46,11 @@ function MessageContent({ content }: { content: string }) {
   return <span className="whitespace-pre-wrap">{parts}</span>
 }
 
-export default function ChatButton() {
+type ChatButtonProps = {
+  apiPath?: string
+}
+
+export default function ChatButton({ apiPath = '/api/chat' }: ChatButtonProps) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: config.agent.greeting },
@@ -98,7 +102,7 @@ export default function ChatButton() {
         const buffer = await file.arrayBuffer()
         const content = btoa(String.fromCharCode(...new Uint8Array(buffer)))
         const fileType = name.endsWith('.docx') ? 'docx' : 'pdf'
-        const res = await fetch('/api/chat/extract', {
+        const res = await fetch(`${apiPath}/extract`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content, fileType }),
@@ -149,7 +153,7 @@ export default function ChatButton() {
       const apiMessages = newMessages.map((m, i) =>
         i === newMessages.length - 1 ? { role: m.role, content } : { role: m.role, content: m.content }
       )
-      const res = await fetch('/api/chat', {
+      const res = await fetch(apiPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages }),

@@ -4,24 +4,28 @@ import { auth } from '@/auth'
 import { buildStudioSystemPrompt } from '@/agent/studio/prompts/system'
 import { studioTools } from '@/agent/studio/tools/definitions'
 import { executeStudioTool } from '@/agent/studio/tools/handlers'
-import config from '../../../../../folio.config'
+import { getTokenBalance, consumeTokens } from '@/lib/folios'
 
 export const dynamic = 'force-dynamic'
 
 const anthropic = new Anthropic()
 
-function isOwner(email?: string | null): boolean {
-  const ownerEmail = process.env.OWNER_EMAIL ?? config.owner.email
-  return !!email && email === ownerEmail
-}
-
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return Response.json({ error: 'signin_required' }, { status: 401 })
   }
-  if (!isOwner(session.user.email)) {
-    return Response.json({ error: 'forbidden' }, { status: 403 })
+
+  const ownerId = session.user.id
+  const ownerName = session.user.name ?? undefined
+
+  // Check token budget before processing
+  const balance = await getTokenBalance(ownerId)
+  if (balance.remaining <= 0) {
+    return Response.json(
+      { error: 'budget_exceeded', budget: balance },
+      { status: 402 },
+    )
   }
 
   let body: { messages: Anthropic.MessageParam[] }
@@ -33,8 +37,9 @@ export async function POST(req: NextRequest) {
 
   const MAX_HISTORY = 20
   let messages: Anthropic.MessageParam[] = body.messages.slice(-MAX_HISTORY)
-  const system = buildStudioSystemPrompt()
+  const system = buildStudioSystemPrompt(ownerName)
   const encoder = new TextEncoder()
+  let totalTokensUsed = 0
 
   async function* generateStream() {
     for (let iter = 0; iter < 8; iter++) {
@@ -56,6 +61,7 @@ export async function POST(req: NextRequest) {
       }
 
       const finalMsg = await stream.finalMessage()
+      totalTokensUsed += (finalMsg.usage.input_tokens ?? 0) + (finalMsg.usage.output_tokens ?? 0)
 
       if (finalMsg.stop_reason === 'end_turn') break
 
@@ -68,7 +74,6 @@ export async function POST(req: NextRequest) {
 
         const results: Anthropic.ToolResultBlockParam[] = []
         for (const t of toolUses) {
-          // Stream a status indicator so the UI shows tool activity
           const toolLabel =
             t.name === 'save_content'
               ? `Saving "${(t.input as Record<string, unknown>).title}"…`
@@ -82,6 +87,7 @@ export async function POST(req: NextRequest) {
           const result = await executeStudioTool(
             t.name,
             t.input as Record<string, unknown>,
+            ownerId,
           )
           results.push({ type: 'tool_result', tool_use_id: t.id, content: result })
         }
@@ -91,6 +97,15 @@ export async function POST(req: NextRequest) {
       }
 
       break
+    }
+
+    // Persist token usage and emit final balance to client
+    if (totalTokensUsed > 0) {
+      await consumeTokens(ownerId, totalTokensUsed).catch(() => {})
+    }
+    const updatedBalance = await getTokenBalance(ownerId).catch(() => null)
+    if (updatedBalance) {
+      yield `data: ${JSON.stringify({ budget: updatedBalance })}\n\n`
     }
 
     yield 'data: [DONE]\n\n'

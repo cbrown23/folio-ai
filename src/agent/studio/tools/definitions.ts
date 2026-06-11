@@ -10,7 +10,7 @@ export const studioTools: Anthropic.Tool[] = [
       properties: {
         type: {
           type: 'string',
-          enum: ['case-study', 'journal', 'bio', 'resume', 'adr'],
+          enum: ['case-study', 'architecture', 'journal', 'bio', 'resume', 'adr'],
           description: 'Content type',
         },
         title: {
@@ -197,7 +197,7 @@ export const studioTools: Anthropic.Tool[] = [
       properties: {
         type: {
           type: 'string',
-          description: 'Filter by document type: bio, resume, case-study, journal, memory, job-req, connection, diagram, adr',
+          description: 'Filter by document type: bio, resume, case-study, architecture, journal, memory, job-req, connection, diagram, adr',
         },
         since: {
           type: 'string',

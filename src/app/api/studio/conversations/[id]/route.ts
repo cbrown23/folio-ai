@@ -1,25 +1,20 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
 import { sql } from '@/lib/db'
-import config from '../../../../../../folio.config'
 
 export const dynamic = 'force-dynamic'
-
-function isOwner(email?: string | null) {
-  return !!email && email === (process.env.OWNER_EMAIL ?? config.owner.email)
-}
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth()
-  if (!session?.user || !isOwner(session.user.email)) {
-    return Response.json({ error: 'forbidden' }, { status: 403 })
+  if (!session?.user?.id) {
+    return Response.json({ error: 'signin_required' }, { status: 401 })
   }
 
   const { id } = await params
-  const ownerId = process.env.OWNER_ID ?? 'default'
+  const ownerId = session.user.id
 
   const rows = await sql`
     SELECT id, title, messages, created_at, updated_at
@@ -40,12 +35,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth()
-  if (!session?.user || !isOwner(session.user.email)) {
-    return Response.json({ error: 'forbidden' }, { status: 403 })
+  if (!session?.user?.id) {
+    return Response.json({ error: 'signin_required' }, { status: 401 })
   }
 
   const { id } = await params
-  const ownerId = process.env.OWNER_ID ?? 'default'
+  const ownerId = session.user.id
 
   await sql`
     DELETE FROM conversations
