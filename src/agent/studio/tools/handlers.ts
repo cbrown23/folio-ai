@@ -107,6 +107,41 @@ export async function executeStudioTool(
       return `Connection profile for ${name} saved (${chunks} chunk${chunks !== 1 ? 's' : ''}). The chat agent will use this when ${nickname ?? name} visits using ${email}.`
     }
 
+    case 'get_connection': {
+      const email = input.email as string
+
+      const rows = await sql`
+        SELECT content, metadata, created_at
+        FROM documents
+        WHERE owner_id = ${ownerId}
+          AND type = 'connection'
+          AND metadata->>'email' = ${email}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `
+
+      if (rows.length === 0) {
+        return `No connection profile found for ${email}.`
+      }
+
+      const row = rows[0]
+      const meta = (row.metadata as Record<string, unknown>) ?? {}
+      const visitCount = meta.visit_count as number | undefined
+      const lastSeen = meta.last_seen as string | undefined
+      const createdAt = new Date(row.created_at as string).toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric',
+      })
+
+      const lines: string[] = [row.content as string, '', '---', `**First seen**: ${createdAt}`]
+      if (visitCount !== undefined) lines.push(`**Visit count**: ${visitCount}`)
+      if (lastSeen) {
+        const d = new Date(lastSeen).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        lines.push(`**Last seen**: ${d}`)
+      }
+
+      return lines.join('\n')
+    }
+
     case 'set_baseline': {
       const source = input.source as string
 

@@ -112,6 +112,21 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_connection',
+    description:
+      'Retrieve the full connection profile for a person by their email address, including visit history (visit count, last seen date) and any notes saved by the owner. Use this to inspect what the chat agent knows about a specific visitor before deciding whether to update their profile.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        email: {
+          type: 'string',
+          description: "The person's LinkedIn email address",
+        },
+      },
+      required: ['email'],
+    },
+  },
+  {
     name: 'set_baseline',
     description:
       'Designate an existing resume document as the baseline. Use this when the owner wants to promote a conversationally-generated resume to baseline status. Clears the baseline flag from any previous baseline resume.',
@@ -135,7 +150,7 @@ export const studioTools: Anthropic.Tool[] = [
       properties: {
         type: {
           type: 'string',
-          description: 'Filter by document type: bio, resume, case-study, journal, memory, job-req',
+          description: 'Filter by document type: bio, resume, case-study, journal, memory, job-req, connection',
         },
         since: {
           type: 'string',
