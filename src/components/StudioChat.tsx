@@ -1,6 +1,51 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react'
+
+const MermaidBlock = lazy(() => import('./MermaidBlock'))
+
+type Segment =
+  | { type: 'text'; content: string }
+  | { type: 'code'; lang: string; content: string }
+
+function parseSegments(text: string): Segment[] {
+  const segments: Segment[] = []
+  const re = /```(\w*)\n([\s\S]*?)```/g
+  let last = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) segments.push({ type: 'text', content: text.slice(last, match.index) })
+    segments.push({ type: 'code', lang: match[1].toLowerCase(), content: match[2] })
+    last = match.index + match[0].length
+  }
+  if (last < text.length) segments.push({ type: 'text', content: text.slice(last) })
+  return segments
+}
+
+function MessageBody({ content }: { content: string }) {
+  const segments = parseSegments(content)
+  return (
+    <>
+      {segments.map((seg, i) => {
+        if (seg.type === 'code' && seg.lang === 'mermaid') {
+          return (
+            <Suspense key={i} fallback={<div className="text-xs text-zinc-500 py-2">Rendering diagram…</div>}>
+              <MermaidBlock code={seg.content} />
+            </Suspense>
+          )
+        }
+        if (seg.type === 'code') {
+          return (
+            <pre key={i} className="my-2 p-3 rounded-lg bg-zinc-900 border border-zinc-700/50 text-xs overflow-x-auto whitespace-pre">
+              <code>{seg.content}</code>
+            </pre>
+          )
+        }
+        return <span key={i} className="whitespace-pre-wrap">{seg.content}</span>
+      })}
+    </>
+  )
+}
 
 type Role = 'user' | 'assistant'
 
@@ -266,7 +311,7 @@ export default function StudioChat({ restoredConversation, onNewConversation }: 
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-3xl rounded-lg px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap font-mono ${
+              className={`max-w-3xl rounded-lg px-4 py-3 text-sm leading-relaxed font-mono ${
                 msg.role === 'user'
                   ? 'bg-indigo-600 text-white'
                   : 'bg-zinc-800 text-zinc-100 border border-zinc-700'
@@ -275,11 +320,10 @@ export default function StudioChat({ restoredConversation, onNewConversation }: 
               {msg.toolStatus && (
                 <div className="text-xs text-indigo-400 mb-2 italic">{msg.toolStatus}</div>
               )}
-              {msg.content || (
-                <span className="text-zinc-500 italic">
-                  {msg.toolStatus ? '' : 'Thinking…'}
-                </span>
-              )}
+              {msg.content
+                ? <MessageBody content={msg.content} />
+                : <span className="text-zinc-500 italic">{msg.toolStatus ? '' : 'Thinking…'}</span>
+              }
             </div>
           </div>
         ))}

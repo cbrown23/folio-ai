@@ -2,7 +2,7 @@ import { sql } from '@/lib/db'
 import { ingestDocument } from '@/lib/ingest'
 import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
 
-type DocType = 'case-study' | 'journal' | 'bio' | 'resume' | 'memory'
+type DocType = 'case-study' | 'journal' | 'bio' | 'resume' | 'memory' | 'adr' | 'diagram'
 
 export async function executeStudioTool(
   name: string,
@@ -18,11 +18,10 @@ export async function executeStudioTool(
       const content = input.content as string
 
       const relPath =
-        type === 'case-study'
-          ? `case-studies/${slug}.md`
-          : type === 'journal'
-            ? `journal/${slug}.md`
-            : `${type}.md`
+        type === 'case-study' ? `case-studies/${slug}.md`
+        : type === 'journal'  ? `journal/${slug}.md`
+        : type === 'adr'      ? `adrs/${slug}.md`
+        : `${type}.md`
 
       const source = `content/${relPath}`
       const { chunks } = await ingestDocument(type, title, source, content, ownerId)
@@ -243,6 +242,33 @@ export async function executeStudioTool(
       return Object.entries(grouped)
         .map(([type, items]) => `**${type}**\n${items.join('\n')}`)
         .join('\n\n')
+    }
+
+    case 'save_diagram': {
+      const title = input.title as string
+      const slug = input.slug as string
+      const diagramType = input.diagram_type as string
+      const mermaidSource = input.mermaid_source as string
+      const description = input.description as string | undefined
+
+      const source = `diagrams/${slug}`
+      const content = [
+        `## ${title}`,
+        description ? `\n${description}` : '',
+        `\n\`\`\`mermaid\n${mermaidSource.trim()}\n\`\`\``,
+      ].filter(Boolean).join('\n')
+
+      const { chunks } = await ingestDocument(
+        'diagram',
+        title,
+        source,
+        content,
+        ownerId,
+        ownerId,
+        { diagram_type: diagramType },
+      )
+
+      return `Diagram "${title}" saved (source: ${source}, ${chunks} chunk${chunks !== 1 ? 's' : ''}). It can be referenced in case studies and ADRs.`
     }
 
     default:

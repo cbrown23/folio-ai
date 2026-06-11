@@ -12,9 +12,9 @@ type Doc = {
   created_at: string
 }
 
-type DocType = 'bio' | 'resume' | 'case-study' | 'journal' | 'memory' | 'job-req' | 'connection'
+type DocType = 'bio' | 'resume' | 'case-study' | 'journal' | 'memory' | 'job-req' | 'connection' | 'diagram' | 'adr'
 
-const DOC_TYPES: DocType[] = ['bio', 'resume', 'case-study', 'journal', 'memory', 'job-req', 'connection']
+const DOC_TYPES: DocType[] = ['bio', 'resume', 'case-study', 'journal', 'adr', 'diagram', 'memory', 'job-req', 'connection']
 
 const TYPE_COLORS: Record<string, string> = {
   'bio':          'bg-sky-900/50 text-sky-300 border-sky-700/50',
@@ -24,6 +24,8 @@ const TYPE_COLORS: Record<string, string> = {
   'job-req':      'bg-rose-900/50 text-rose-300 border-rose-700/50',
   'memory':       'bg-pink-900/50 text-pink-300 border-pink-700/50',
   'connection':   'bg-teal-900/50 text-teal-300 border-teal-700/50',
+  'diagram':      'bg-cyan-900/50 text-cyan-300 border-cyan-700/50',
+  'adr':          'bg-orange-900/50 text-orange-300 border-orange-700/50',
 }
 
 function TypeBadge({ type }: { type: string }) {

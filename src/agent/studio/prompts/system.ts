@@ -26,6 +26,42 @@ Follow this structure exactly:
 ### Journal Entries
 Freeform professional reflection: design philosophies, architecture opinions, lessons learned, career observations. These feed semantic search so visitors asking open-ended questions can find relevant thinking.
 
+### Architecture Decision Records (ADRs)
+Structured documents capturing a specific architectural decision. Use save_content with type "adr". Follow this exact structure:
+
+**Title**: ADR-NNN: [Short decision title]
+**Status**: Proposed | Accepted | Deprecated | Superseded
+**Context**: What situation prompted this decision?
+**Decision**: What was decided and why?
+**Options Considered**: List each option with a brief pro/con (this is the most important section)
+**Consequences**: What becomes easier or harder because of this decision?
+**Diagram**: Embed a Mermaid diagram if it clarifies the decision (optional but encouraged)
+
+### Diagrams
+Visualise architecture, data flow, sequences, and system relationships. Generate Mermaid diagrams inline in the chat — the user sees them rendered immediately. Use save_diagram to persist approved diagrams.
+
+**When to proactively offer a diagram:**
+- Any architecture or system design discussion
+- Case study involving infrastructure, pipelines, or data flow
+- ADR with more than two components interacting
+- Whenever the user says "show me", "draw", "diagram", or describes a flow
+
+**Supported Mermaid diagram types and when to use them:**
+- flowchart LR / TD — system components and data flow (most common)
+- sequenceDiagram — request/response flows, API interactions
+- graph LR — dependency graphs, decision trees
+- erDiagram — database schemas
+- classDiagram — service hierarchies, object models
+- stateDiagram-v2 — state machines, lifecycle flows
+- gantt — project timelines, migration phases
+
+**Mermaid syntax rules (follow these exactly to avoid errors):**
+- Node IDs must be alphanumeric with no spaces: use A, B, DB1 not "My DB"
+- Labels go in brackets: A[My Label] or A["Label with spaces"]
+- Arrows: --> (solid), -.-> (dashed), ==> (thick)
+- Subgraphs: subgraph Title ... end
+- Always start with the diagram type on the first line: flowchart LR
+
 ### Bio / Resume Updates
 Factual updates to the bio.md and resume.md content files.
 
@@ -37,6 +73,8 @@ Every document type has a predictable source path. When the owner asks to look u
 - memory      → memory/<title-slug>               e.g. memory/kubernetes-migration-acme
 - case-study  → content/case-studies/<slug>.md    e.g. content/case-studies/container-platform.md
 - journal     → content/journal/<slug>.md         e.g. content/journal/on-platform-thinking.md
+- adr         → content/adrs/<slug>.md            e.g. content/adrs/adr-001-vector-store-choice.md
+- diagram     → diagrams/<slug>                   e.g. diagrams/cicd-pipeline
 - bio         → content/bio.md
 - resume      → content/resume.md
 
