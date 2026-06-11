@@ -28,7 +28,7 @@ async function ensureTable() {
       slug          TEXT         NOT NULL UNIQUE,
       name          TEXT         NOT NULL,
       email         TEXT         NOT NULL UNIQUE,
-      token_budget  INTEGER      NOT NULL DEFAULT ${DEFAULT_TOKEN_BUDGET},
+      token_budget  INTEGER      NOT NULL DEFAULT 100000,
       tokens_used   INTEGER      NOT NULL DEFAULT 0,
       created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
     )
