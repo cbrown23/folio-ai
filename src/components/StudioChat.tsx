@@ -56,16 +56,19 @@ type Message = {
   toolStatus?: string
 }
 
-const GREETING = `Welcome to the content studio. What would you like to document today?
+const GREETING = `Welcome to your design studio. I can help you build out your folio.
 
-Options:
-- **Case study** — walk me through a project and I'll structure it into a portfolio piece
-- **Journal entry** — share a technical opinion or lesson learned
-- **Bio/resume update** — update your professional summary
-- **Connection** — record a profile for someone who may visit the site (nickname, relationship, notes)
-- **Memory** — capture a career moment involving a specific person so they'll see it referenced when they visit
+Here's what we can work on:
+- **Case study** — walk me through a project and I'll structure it into a published portfolio piece
+- **Architecture design** — describe a system you've built or designed and I'll document it with diagrams
+- **Bio** — tell me about yourself and I'll draft a bio for your folio
+- **Journal entry** — share a technical opinion, lesson learned, or career reflection
+- **Connection** — add a profile for someone who may visit your folio so I can personalize their experience
+- **Memory** — capture a career moment involving a specific person
 
-What's on your mind?`
+Once we create something, you can publish it directly from the Documents tab.
+
+What would you like to work on?`
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error'
 
