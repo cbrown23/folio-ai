@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import StudioChat from './StudioChat'
 import DocumentsTable from './DocumentsTable'
 import ConversationHistory, { type StoredConversation } from './ConversationHistory'
@@ -23,6 +23,34 @@ type Props = {
 export default function StudioTabs({ initialBalance, folioSlug }: Props) {
   const [active, setActive] = useState<Tab>('chat')
   const [restoredConversation, setRestoredConversation] = useState<RestoredConversation>(null)
+
+  // Auto-load the most recently updated conversation on mount
+  useEffect(() => {
+    let cancelled = false
+    async function loadLatest() {
+      try {
+        const listRes = await fetch('/api/studio/conversations')
+        if (!listRes.ok || cancelled) return
+        const { conversations } = await listRes.json()
+        if (!conversations?.length || cancelled) return
+
+        const convRes = await fetch(`/api/studio/conversations/${conversations[0].id}`)
+        if (!convRes.ok || cancelled) return
+        const { conversation } = await convRes.json()
+        if (!cancelled) {
+          setRestoredConversation({
+            id: conversation.id,
+            title: conversation.title,
+            messages: conversation.messages ?? [],
+          })
+        }
+      } catch {
+        // silently ignore — just show the greeting instead
+      }
+    }
+    loadLatest()
+    return () => { cancelled = true }
+  }, [])
 
   function handleRestore(conv: StoredConversation) {
     setRestoredConversation({
