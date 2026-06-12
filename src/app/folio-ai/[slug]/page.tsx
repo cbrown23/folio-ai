@@ -95,16 +95,23 @@ async function buildSections(ownerId: string, folioSlug: string): Promise<
     const compositionRefs = items.filter((it) => it.ref_composition_id)
     if (compositionRefs.length > 0) {
       folioConfigured = true
-      const refIds = compositionRefs.map((it) => it.ref_composition_id as string)
-      const refRows = await sql`
+
+      // Avoid passing a JS array as a Neon parameter (ANY($1::uuid[]) is unreliable
+      // with the HTTP driver). Fetch all non-folio compositions for this owner and
+      // filter in JS — also uses LEFT JOIN so missing composition_type rows don't
+      // silently drop valid compositions.
+      const allRows = await sql`
         SELECT c.id, c.owner_id, c.type, c.title, c.slug, c.published, c.created_at, c.updated_at,
-               ct.name AS type_name, ct.position AS type_position
+               COALESCE(ct.name, c.type)     AS type_name,
+               COALESCE(ct.position, 99)     AS type_position
         FROM compositions c
-        JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
-        WHERE c.id = ANY(${refIds}::uuid[]) AND c.owner_id = ${ownerId} AND c.published = TRUE
+        LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
+        WHERE c.owner_id = ${ownerId} AND c.type != 'folio' AND c.published = TRUE
       `
+      const byId = new Map(
+        (allRows as Array<Composition & { type_name: string }>).map((r) => [r.id, r])
+      )
       // Preserve the folio composition's item order
-      const byId = new Map((refRows as Array<Composition & { type_name: string }>).map((r) => [r.id, r]))
       orderedCompositions = compositionRefs
         .map((it) => byId.get(it.ref_composition_id as string))
         .filter(Boolean) as Array<Composition & { type_name: string }>

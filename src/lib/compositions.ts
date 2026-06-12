@@ -219,14 +219,15 @@ export async function getPublishedCompositionsForFolio(
   await ensureBuiltInTypes(ownerId)
   const rows = await sql`
     SELECT c.id, c.owner_id, c.type, c.title, c.slug, c.published, c.created_at, c.updated_at,
-           ct.name AS type_name, ct.position AS type_position
+           COALESCE(ct.name, c.type)  AS type_name,
+           COALESCE(ct.position, 99)  AS type_position
     FROM compositions c
-    JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
+    LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
     WHERE c.owner_id = ${ownerId}
       AND c.published = TRUE
-      AND ct.folio_visible = TRUE
+      AND COALESCE(ct.folio_visible, TRUE)
       AND c.type != 'folio'
-    ORDER BY ct.position ASC, c.updated_at DESC
+    ORDER BY COALESCE(ct.position, 99) ASC, c.updated_at DESC
   `
   return rows as Array<Composition & { type_name: string; type_position: number }>
 }
