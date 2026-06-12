@@ -209,8 +209,12 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
     }
   }
 
+  // Bio docs are the folio intro — pinned at top, excluded from search/sort list
+  const folioDocs = docs.filter((d) => d.type === 'bio')
+  const restDocs  = docs.filter((d) => d.type !== 'bio')
+
   const q = search.trim().toLowerCase()
-  const filtered = docs.filter((d) =>
+  const filtered = restDocs.filter((d) =>
     !q || d.title.toLowerCase().includes(q) || d.source.toLowerCase().includes(q) || d.type.toLowerCase().includes(q)
   )
   const sorted = [...filtered].sort((a, b) => {
@@ -324,7 +328,7 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-700 shrink-0 flex-wrap">
         <span className="text-xs text-zinc-500 shrink-0">
-          {sorted.length !== docs.length
+          {q && sorted.length !== restDocs.length
             ? `${sorted.length} of ${docs.length} documents`
             : `${docs.length} document${docs.length !== 1 ? 's' : ''}`}
           {' · '}{docs.reduce((n, d) => n + d.chunk_count, 0)} chunks
@@ -366,7 +370,7 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
         <div className="flex items-center justify-center flex-1 text-zinc-500 text-sm">
           No documents yet. Use the Chat tab or upload a file above.
         </div>
-      ) : sorted.length === 0 ? (
+      ) : (sorted.length === 0 && folioDocs.length === 0) ? (
         <div className="flex items-center justify-center flex-1 text-zinc-500 text-sm">
           No documents match &ldquo;{search}&rdquo;
         </div>
@@ -393,6 +397,52 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
+              {/* Folio intro docs — pinned, not deletable */}
+              {folioDocs.map((doc) => {
+                const date = new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                return (
+                  <tr key={doc.source} className="bg-sky-950/20 border-l-2 border-l-sky-600/50 hover:bg-sky-950/30 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex flex-col gap-0.5">
+                        <TypeBadge type={doc.type} />
+                        <span className="text-[10px] text-sky-500 font-mono">folio intro</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-100 max-w-[200px] truncate" title={doc.title}>
+                      {doc.title}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-400 font-mono text-xs max-w-[220px] truncate" title={doc.source}>
+                      {doc.source}
+                    </td>
+                    <td className="px-4 py-3 text-center text-zinc-400">{doc.chunk_count}</td>
+                    <td className="px-4 py-3 text-center" />
+                    <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">{date}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-2 justify-end items-center">
+                        {folioSlug && (
+                          <a
+                            href={`/folio-ai/${folioSlug}/doc?source=${encodeURIComponent(doc.source)}`}
+                            className="text-xs px-3 py-1 rounded border border-transparent text-zinc-500 hover:text-indigo-400 hover:border-indigo-800 transition-colors"
+                          >
+                            View
+                          </a>
+                        )}
+                        <button
+                          onClick={() => handleDownloadOne(doc.source)}
+                          className="text-xs px-3 py-1 rounded border border-transparent text-zinc-500 hover:text-emerald-400 hover:border-emerald-800 transition-colors"
+                          title="Download as Markdown"
+                        >
+                          ↓
+                        </button>
+                        <span className="text-xs px-3 py-1 text-zinc-700" title="Folio intro cannot be deleted here — replace it by uploading a new bio document">
+                          —
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {folioDocs.length > 0 && <tr className="h-0"><td colSpan={7} className="p-0 border-b-2 border-zinc-700/60" /></tr>}
               {sorted.map((doc) => {
                 const isDeleting = deleting === doc.source
                 const isConfirming = confirmDelete === doc.source
