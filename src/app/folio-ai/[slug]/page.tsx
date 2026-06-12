@@ -98,6 +98,7 @@ async function buildSections(ownerId: string, folioSlug: string, isOwner: boolea
   if (folioComp) {
     const items = await getCompositionItems(folioComp.id)
     const compositionRefs = items.filter((it) => it.ref_composition_id)
+    console.log('[folio] items=%d  refs=%d  refIds=%j', items.length, compositionRefs.length, compositionRefs.map((r) => r.ref_composition_id))
     if (compositionRefs.length > 0) {
       folioConfigured = true
 
@@ -120,12 +121,14 @@ async function buildSections(ownerId: string, folioSlug: string, isOwner: boolea
             WHERE c.owner_id = ${ownerId} AND c.type != 'folio' AND c.published = TRUE
           `
 
+      console.log('[folio] allRows=%d  ids=%j', allRows.length, (allRows as Array<{ id: string; type: string; title: string }>).map((r) => ({ id: r.id, type: r.type, title: r.title })))
       const byId = new Map(
         (allRows as Array<Composition & { type_name: string }>).map((r) => [r.id, r])
       )
       orderedCompositions = compositionRefs
         .map((it) => byId.get(it.ref_composition_id as string))
         .filter(Boolean) as Array<Composition & { type_name: string }>
+      console.log('[folio] orderedCompositions=%d  types=%j', orderedCompositions.length, orderedCompositions.map((c) => ({ id: c.id, type: c.type, title: c.title })))
     }
   }
 
