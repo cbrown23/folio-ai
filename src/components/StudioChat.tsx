@@ -77,10 +77,11 @@ type TokenBalance = { budget: number; used: number; remaining: number }
 type Props = {
   restoredConversation?: { id: string; title: string; messages: Array<{ role: Role; content: string }> } | null
   onNewConversation?: () => void
+  onRename?: (id: string, title: string) => void
   initialBalance?: TokenBalance | null
 }
 
-export default function StudioChat({ restoredConversation, onNewConversation, initialBalance }: Props) {
+export default function StudioChat({ restoredConversation, onNewConversation, onRename, initialBalance }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'greeting', role: 'assistant', content: GREETING },
   ])
@@ -165,6 +166,7 @@ export default function StudioChat({ restoredConversation, onNewConversation, in
     setEditingTitle(false)
     if (!trimmed || trimmed === conversationTitle || !conversationId) return
     setConversationTitle(trimmed)
+    onRename?.(conversationId, trimmed)
     await fetch(`/api/studio/conversations/${conversationId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

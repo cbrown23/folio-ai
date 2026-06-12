@@ -52,6 +52,10 @@ export default function StudioTabs({ initialBalance, folioSlug }: Props) {
     return () => { cancelled = true }
   }, [])
 
+  function handleRename(id: string, title: string) {
+    setRestoredConversation((prev) => prev?.id === id ? { ...prev, title } : prev)
+  }
+
   function handleRestore(conv: StoredConversation) {
     setRestoredConversation({
       id: conv.id,
@@ -86,6 +90,7 @@ export default function StudioTabs({ initialBalance, folioSlug }: Props) {
           <StudioChat
             restoredConversation={restoredConversation}
             onNewConversation={() => setRestoredConversation(null)}
+            onRename={handleRename}
             initialBalance={initialBalance}
           />
         )}
