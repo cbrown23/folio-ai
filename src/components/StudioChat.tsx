@@ -85,6 +85,9 @@ export default function StudioChat({ restoredConversation, onNewConversation, in
     { id: 'greeting', role: 'assistant', content: GREETING },
   ])
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationTitle, setConversationTitle] = useState<string>('')
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
@@ -104,6 +107,8 @@ export default function StudioChat({ restoredConversation, onNewConversation, in
     }))
     setMessages(restored.length > 0 ? restored : [{ id: 'greeting', role: 'assistant', content: GREETING }])
     setConversationId(restoredConversation.id)
+    setConversationTitle(restoredConversation.title)
+    setEditingTitle(false)
   }, [restoredConversation])
 
   useEffect(() => {
@@ -149,8 +154,22 @@ export default function StudioChat({ restoredConversation, onNewConversation, in
   function startNewConversation() {
     setMessages([{ id: 'greeting', role: 'assistant', content: GREETING }])
     setConversationId(null)
+    setConversationTitle('')
+    setEditingTitle(false)
     setInput('')
     onNewConversation?.()
+  }
+
+  async function renameConversation(newTitle: string) {
+    const trimmed = newTitle.trim()
+    setEditingTitle(false)
+    if (!trimmed || trimmed === conversationTitle || !conversationId) return
+    setConversationTitle(trimmed)
+    await fetch(`/api/studio/conversations/${conversationId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: trimmed }),
+    })
   }
 
   async function sendMessage() {
@@ -254,7 +273,16 @@ export default function StudioChat({ restoredConversation, onNewConversation, in
       // Auto-save after each complete exchange
       if (finalMessages.length > 0) {
         const savedId = await saveConversation(finalMessages, conversationId)
-        if (savedId && savedId !== conversationId) setConversationId(savedId)
+        if (savedId && savedId !== conversationId) {
+          setConversationId(savedId)
+          // Derive the auto-title from the first user message (same logic as saveConversation)
+          if (!conversationId) {
+            const firstUser = finalMessages.find((m) => m.role === 'user')
+            if (firstUser) {
+              setConversationTitle(firstUser.content.slice(0, 80).replace(/\n/g, ' ').trim())
+            }
+          }
+        }
       }
     }
   }
@@ -308,9 +336,35 @@ export default function StudioChat({ restoredConversation, onNewConversation, in
     <div className="flex flex-col h-full">
       {/* Conversation toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/60 shrink-0">
-        <span className="text-xs text-zinc-500">
-          {conversationId ? 'Auto-saving' : 'New conversation'}
-        </span>
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => renameConversation(titleDraft)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') renameConversation(titleDraft)
+              if (e.key === 'Escape') setEditingTitle(false)
+            }}
+            className="flex-1 mr-4 bg-zinc-800 border border-indigo-500 rounded px-2 py-0.5 text-xs text-zinc-100 focus:outline-none"
+          />
+        ) : (
+          <button
+            onClick={() => {
+              if (!conversationId) return
+              setTitleDraft(conversationTitle)
+              setEditingTitle(true)
+            }}
+            title={conversationId ? 'Click to rename' : undefined}
+            className={`text-xs truncate max-w-xs text-left transition-colors ${
+              conversationId
+                ? 'text-zinc-300 hover:text-indigo-400 cursor-text'
+                : 'text-zinc-500 cursor-default'
+            }`}
+          >
+            {conversationTitle || (conversationId ? 'Untitled' : 'New conversation')}
+          </button>
+        )}
         <div className="flex items-center gap-3">
           {tokenBalance && (
             <div className="flex items-center gap-2">
