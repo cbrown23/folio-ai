@@ -28,6 +28,7 @@ const TYPE_COLORS: Record<string, string> = {
   'connection':   'bg-teal-900/50 text-teal-300 border-teal-700/50',
   'diagram':      'bg-cyan-900/50 text-cyan-300 border-cyan-700/50',
   'adr':          'bg-orange-900/50 text-orange-300 border-orange-700/50',
+  'folio':        'bg-indigo-900/50 text-indigo-300 border-indigo-700/50',
 }
 
 function TypeBadge({ type }: { type: string }) {
@@ -209,9 +210,9 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
     }
   }
 
-  // Bio docs are the folio intro — pinned at top, excluded from search/sort list
-  const folioDocs = docs.filter((d) => d.type === 'bio')
-  const restDocs  = docs.filter((d) => d.type !== 'bio')
+  // Folio document — compiled output of the folio composition, pinned at top, non-deletable
+  const folioDocs = docs.filter((d) => d.type === 'folio')
+  const restDocs  = docs.filter((d) => d.type !== 'folio')
 
   const q = search.trim().toLowerCase()
   const filtered = restDocs.filter((d) =>
@@ -401,11 +402,11 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
               {folioDocs.map((doc) => {
                 const date = new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 return (
-                  <tr key={doc.source} className="bg-sky-950/20 border-l-2 border-l-sky-600/50 hover:bg-sky-950/30 transition-colors">
+                  <tr key={doc.source} className="bg-indigo-950/20 border-l-2 border-l-indigo-600/50 hover:bg-indigo-950/30 transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex flex-col gap-0.5">
                         <TypeBadge type={doc.type} />
-                        <span className="text-[10px] text-sky-500 font-mono">folio intro</span>
+                        <span className="text-[10px] text-indigo-400 font-mono">folio page</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-zinc-100 max-w-[200px] truncate" title={doc.title}>
@@ -434,7 +435,7 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
                         >
                           ↓
                         </button>
-                        <span className="text-xs px-3 py-1 text-zinc-700" title="Folio intro cannot be deleted here — replace it by uploading a new bio document">
+                        <span className="text-xs px-3 py-1 text-zinc-700" title="Folio document is auto-generated — click Apply to folio in the Compositions tab to regenerate">
                           —
                         </span>
                       </div>
