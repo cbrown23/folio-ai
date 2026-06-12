@@ -364,6 +364,21 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
 
         {error && <div className="px-4 py-3 text-xs text-red-400">{error}</div>}
 
+        {/* Folio composition — pinned at top */}
+        {compositions.filter((c) => c.type === 'folio').map((comp) => (
+          <div
+            key={comp.id}
+            onClick={() => loadItems(comp)}
+            className={`shrink-0 border-b border-zinc-700 px-4 py-3 cursor-pointer transition-colors ${selected?.id === comp.id ? 'bg-violet-950/40' : 'hover:bg-zinc-800/30'}`}
+          >
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono shrink-0 ${typeBadge('folio')}`}>folio</span>
+              <span className="text-xs text-zinc-300 flex-1 truncate">{comp.title}</span>
+              <span className="text-[10px] text-zinc-600">page layout</span>
+            </div>
+          </div>
+        ))}
+
         <ul className="flex-1 overflow-y-auto divide-y divide-zinc-800">
           {compositions.filter((c) => c.type !== 'folio').length === 0 && !creating && (
             <li className="px-4 py-8 text-xs text-zinc-600 text-center">No compositions yet</li>
@@ -390,20 +405,6 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
             </li>
           ))}
         </ul>
-        {/* Folio composition — pinned at bottom */}
-        {compositions.filter((c) => c.type === 'folio').map((comp) => (
-          <div
-            key={comp.id}
-            onClick={() => loadItems(comp)}
-            className={`shrink-0 border-t border-zinc-700 px-4 py-3 cursor-pointer transition-colors ${selected?.id === comp.id ? 'bg-violet-950/40' : 'hover:bg-zinc-800/30'}`}
-          >
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono shrink-0 ${typeBadge('folio')}`}>folio</span>
-              <span className="text-xs text-zinc-300 flex-1 truncate">{comp.title}</span>
-              <span className="text-[10px] text-zinc-600">page layout</span>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Main */}

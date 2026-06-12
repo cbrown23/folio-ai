@@ -41,6 +41,8 @@ function TypeBadge({ type }: { type: string }) {
 
 type UploadState = 'idle' | 'uploading' | 'success' | 'error'
 
+type SortField = 'type' | 'title' | 'created_at' | 'chunk_count'
+
 export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +51,9 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [publishing, setPublishing] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   // Upload form state
   const [showUpload, setShowUpload] = useState(false)
@@ -195,6 +200,33 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
     }
   }
 
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir(field === 'created_at' ? 'desc' : 'asc')
+    }
+  }
+
+  const q = search.trim().toLowerCase()
+  const filtered = docs.filter((d) =>
+    !q || d.title.toLowerCase().includes(q) || d.source.toLowerCase().includes(q) || d.type.toLowerCase().includes(q)
+  )
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0
+    if (sortField === 'type')       cmp = a.type.localeCompare(b.type)
+    if (sortField === 'title')      cmp = a.title.localeCompare(b.title)
+    if (sortField === 'chunk_count') cmp = a.chunk_count - b.chunk_count
+    if (sortField === 'created_at') cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <span className="ml-1 text-zinc-700">↕</span>
+    return <span className="ml-1 text-indigo-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+  }
+
   const uploadForm = showUpload && (
     <div className="border-b border-zinc-700 bg-zinc-800/60 px-4 py-4">
       <div className="flex flex-wrap items-end gap-3 max-w-4xl">
@@ -290,11 +322,20 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 shrink-0">
-        <span className="text-xs text-zinc-500">
-          {docs.length} document{docs.length !== 1 ? 's' : ''} · {docs.reduce((n, d) => n + d.chunk_count, 0)} chunks
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-700 shrink-0 flex-wrap">
+        <span className="text-xs text-zinc-500 shrink-0">
+          {sorted.length !== docs.length
+            ? `${sorted.length} of ${docs.length} documents`
+            : `${docs.length} document${docs.length !== 1 ? 's' : ''}`}
+          {' · '}{docs.reduce((n, d) => n + d.chunk_count, 0)} chunks
         </span>
-        <div className="flex gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title, source, type…"
+          className="flex-1 min-w-[160px] max-w-xs bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+        <div className="flex gap-2 ml-auto">
           <button
             onClick={handleExportAll}
             disabled={exporting || docs.length === 0}
@@ -316,6 +357,7 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
         </div>
       </div>
 
+
       {/* Inline upload form */}
       {uploadForm}
 
@@ -324,22 +366,34 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
         <div className="flex items-center justify-center flex-1 text-zinc-500 text-sm">
           No documents yet. Use the Chat tab or upload a file above.
         </div>
+      ) : sorted.length === 0 ? (
+        <div className="flex items-center justify-center flex-1 text-zinc-500 text-sm">
+          No documents match &ldquo;{search}&rdquo;
+        </div>
       ) : (
         <div className="overflow-auto flex-1">
           <table className="w-full text-sm text-left">
             <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-700 text-xs text-zinc-400 uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Title</th>
+                <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('type')}>
+                  Type<SortIcon field="type" />
+                </th>
+                <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('title')}>
+                  Title<SortIcon field="title" />
+                </th>
                 <th className="px-4 py-3 font-medium">Source</th>
-                <th className="px-4 py-3 font-medium text-center">Chunks</th>
+                <th className="px-4 py-3 font-medium text-center cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('chunk_count')}>
+                  Chunks<SortIcon field="chunk_count" />
+                </th>
                 <th className="px-4 py-3 font-medium text-center">Baseline</th>
-                <th className="px-4 py-3 font-medium">Added</th>
+                <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('created_at')}>
+                  Added<SortIcon field="created_at" />
+                </th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
-              {docs.map((doc) => {
+              {sorted.map((doc) => {
                 const isDeleting = deleting === doc.source
                 const isConfirming = confirmDelete === doc.source
                 const isPublishing = publishing === doc.source
