@@ -49,9 +49,10 @@ export async function PATCH(req: NextRequest) {
   }
 
   const ownerId = session.user.id!
+  const patch = JSON.stringify({ published: body.published })
   const result = await sql`
     UPDATE documents
-    SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('published', ${body.published})
+    SET metadata = COALESCE(metadata, '{}'::jsonb) || ${patch}::jsonb
     WHERE owner_id = ${ownerId} AND source = ${source}
     RETURNING id
   `
