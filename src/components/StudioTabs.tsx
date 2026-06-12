@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import StudioChat from './StudioChat'
 import DocumentsTable from './DocumentsTable'
 import ConversationHistory, { type StoredConversation } from './ConversationHistory'
+import CollectionsTab from './CollectionsTab'
 
-type Tab = 'chat' | 'documents' | 'history'
+type Tab = 'chat' | 'documents' | 'history' | 'collections'
 
 type RestoredConversation = {
   id: string
@@ -69,7 +70,7 @@ export default function StudioTabs({ initialBalance, folioSlug }: Props) {
     <div className="flex flex-col h-full">
       {/* Tab bar */}
       <div className="flex border-b border-zinc-800 bg-zinc-900/60 px-4 shrink-0">
-        {(['chat', 'history', 'documents'] as Tab[]).map((tab) => (
+        {(['chat', 'history', 'documents', 'collections'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActive(tab)}
@@ -98,6 +99,7 @@ export default function StudioTabs({ initialBalance, folioSlug }: Props) {
           <ConversationHistory onRestore={handleRestore} />
         )}
         {active === 'documents' && <DocumentsTable folioSlug={folioSlug} />}
+        {active === 'collections' && <CollectionsTab folioSlug={folioSlug} />}
       </div>
     </div>
   )
