@@ -189,9 +189,9 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'list_collections',
+    name: 'list_compositions',
     description:
-      'List all collections (case studies and architectures) along with their member documents. Use this to show the owner what collections exist and what documents are currently in each one before deciding to publish or modify.',
+      'List all compositions along with their member documents and nested composition references. Use this to show the owner what compositions exist and what is in each one before deciding to publish or modify. Compositions can include documents and/or other compositions.',
     input_schema: {
       type: 'object' as const,
       properties: {},
@@ -199,18 +199,18 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'publish_collection',
+    name: 'publish_composition',
     description:
-      'Republish a collection by recompiling all its member documents into a single polished Markdown page using AI. Use this when the owner asks to regenerate or update a published case study or architecture after adding or changing documents in the collection.',
+      'Publish or republish a composition by compiling all its source documents and nested compositions into a single polished Markdown page using AI. Use this when the owner asks to generate or regenerate a published page for a composition.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        collection_id: {
+        composition_id: {
           type: 'string',
-          description: 'The UUID of the collection to publish. Get this from list_collections.',
+          description: 'The UUID of the composition to publish. Get this from list_compositions.',
         },
       },
-      required: ['collection_id'],
+      required: ['composition_id'],
     },
   },
   {
