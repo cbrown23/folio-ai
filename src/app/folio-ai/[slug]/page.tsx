@@ -83,10 +83,18 @@ async function buildSections(ownerId: string, folioSlug: string): Promise<
   let orderedCompositions: Array<Composition & { type_name: string }> = []
   const folioComp = await getFolioComposition(ownerId)
 
+  // folioConfigured = true means the owner has set up the layout; honour it exclusively.
+  // Only fall back to "all published folio-visible" when no folio composition exists at all
+  // or it has zero composition-ref items (unconfigured). Never fall back just because all
+  // referenced compositions happen to be unpublished — that would let unrelated newly-published
+  // compositions sneak onto the page via the fallback.
+  let folioConfigured = false
+
   if (folioComp) {
     const items = await getCompositionItems(folioComp.id)
     const compositionRefs = items.filter((it) => it.ref_composition_id)
     if (compositionRefs.length > 0) {
+      folioConfigured = true
       const refIds = compositionRefs.map((it) => it.ref_composition_id as string)
       const refRows = await sql`
         SELECT c.id, c.owner_id, c.type, c.title, c.slug, c.published, c.created_at, c.updated_at,
@@ -103,8 +111,8 @@ async function buildSections(ownerId: string, folioSlug: string): Promise<
     }
   }
 
-  // Fallback: all published folio-visible compositions ordered by type position
-  if (orderedCompositions.length === 0) {
+  // Fallback only when the folio layout is unconfigured
+  if (!folioConfigured) {
     orderedCompositions = await getPublishedCompositionsForFolio(ownerId)
   }
 

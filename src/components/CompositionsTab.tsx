@@ -25,7 +25,10 @@ function typeBadge(slug: string) {
 }
 
 // ─── Panel: Manage composition types ─────────────────────────────────────────
-function TypesPanel({ onClose }: { onClose: () => void }) {
+function TypesPanel({ onClose, onTypeCreated }: {
+  onClose: () => void
+  onTypeCreated: (type: CompositionType) => void
+}) {
   const [types, setTypes]       = useState<CompositionType[]>([])
   const [newName, setNewName]   = useState('')
   const [adding, setAdding]     = useState(false)
@@ -48,6 +51,7 @@ function TypesPanel({ onClose }: { onClose: () => void }) {
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Failed'); return }
     setTypes((prev) => [...prev, data.type])
+    onTypeCreated(data.type)   // propagate to parent immediately
     setNewName('')
     setAdding(false)
   }
@@ -146,8 +150,8 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
   const [newType, setNewType]       = useState('architecture')
   const [createError, setCreateError] = useState('')
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const [cRes, tRes, dRes] = await Promise.all([
@@ -163,7 +167,7 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -196,6 +200,8 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     setNewTitle('')
     setCreating(false)
     loadItems(data.composition)
+    // Re-fetch silently so the new composition appears in ref pickers across the tab
+    fetchAll(true)
   }
 
   async function deleteComposition(id: string) {
@@ -317,7 +323,12 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
   const nonFolioCompositions = compositions.filter((c) => c.type !== 'folio' && c.id !== selected?.id)
 
   if (loading) return <div className="flex items-center justify-center flex-1 text-zinc-500 text-sm">Loading…</div>
-  if (showTypes) return <TypesPanel onClose={() => setShowTypes(false)} />
+  if (showTypes) return (
+    <TypesPanel
+      onClose={() => { setShowTypes(false); fetchAll(true) }}
+      onTypeCreated={(type) => setCompositionTypes((prev) => [...prev, type])}
+    />
+  )
 
   return (
     <div className="flex h-full overflow-hidden">
