@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { getFolioBySlug } from '@/lib/folios'
 import { sql } from '@/lib/db'
 import ChatButton from '@/components/ChatButton'
+import SignOutButton from '@/components/SignOutButton'
 
 export const revalidate = 300
 
@@ -104,12 +105,17 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
             )}
             <a href="#contact" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors hidden sm:block">Contact</a>
             {isOwner && (
-              <Link
-                href={`/folio-ai/${slug}/design`}
-                className="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
-              >
-                Studio
-              </Link>
+              <>
+                <Link
+                  href={`/folio-ai/${slug}/design`}
+                  className="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
+                >
+                  Studio
+                </Link>
+                <SignOutButton className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+                  Sign out
+                </SignOutButton>
+              </>
             )}
           </div>
         </div>
