@@ -291,10 +291,11 @@ export async function seedCompositionsFromDocuments(ownerId: string): Promise<vo
   await ensureBuiltInTypes(ownerId)
 
   // Always ensure the folio composition exists (the one that controls the public page layout)
-  await sql`
+  const folioInsert = await sql`
     INSERT INTO compositions (owner_id, type, title, slug, published)
     VALUES (${ownerId}, 'folio', 'Folio Page', 'folio-page', FALSE)
     ON CONFLICT (owner_id, slug) DO NOTHING
+    RETURNING id
   `
 
   const docs = await sql`
@@ -342,6 +343,49 @@ export async function seedCompositionsFromDocuments(ownerId: string): Promise<vo
       INSERT INTO composition_items (composition_id, document_source, section_label, position)
       VALUES (${compositionId}, ${source}, ${defaultLabel}, 0)
     `
+  }
+
+  // Populate folio composition items if empty (covers both first creation and existing empty rows)
+  const folioRow = folioInsert.length > 0
+    ? folioInsert[0]
+    : (await sql`SELECT id FROM compositions WHERE owner_id = ${ownerId} AND type = 'folio' LIMIT 1`)[0]
+
+  if (folioRow) {
+    const folioId = folioRow.id as string
+    const existingItems = await sql`
+      SELECT id FROM composition_items WHERE composition_id = ${folioId} LIMIT 1
+    `
+    if (existingItems.length === 0) {
+
+    let pos = 0
+
+    const bio = await sql`
+      SELECT source FROM documents
+      WHERE owner_id = ${ownerId} AND type = 'bio'
+      ORDER BY created_at DESC LIMIT 1
+    `
+    if (bio.length > 0) {
+      await sql`
+        INSERT INTO composition_items (composition_id, document_source, section_label, position)
+        VALUES (${folioId}, ${bio[0].source as string}, 'Intro', ${pos++})
+      `
+    }
+
+    // Add existing non-folio compositions as refs, sorted by type position then title
+    const comps = await sql`
+      SELECT c.id, c.title, ct.position AS type_position
+      FROM compositions c
+      JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
+      WHERE c.owner_id = ${ownerId} AND c.type != 'folio'
+      ORDER BY ct.position ASC, c.title ASC
+    `
+    for (const comp of comps) {
+      await sql`
+        INSERT INTO composition_items (composition_id, ref_composition_id, section_label, position)
+        VALUES (${folioId}, ${comp.id as string}, ${comp.title as string}, ${pos++})
+      `
+    }
+    } // end existingItems.length === 0
   }
 }
 
