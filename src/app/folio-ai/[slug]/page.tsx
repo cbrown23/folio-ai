@@ -67,24 +67,12 @@ async function resolveCards(
 
 async function fetchIntroExcerpt(ownerId: string): Promise<string> {
   try {
-    // Try the compiled folio document first; only use it if the excerpt is real prose
-    // (not a list item from the sections manifest, which means bio wasn't included)
-    const folioRows = await sql`
-      SELECT content FROM documents
-      WHERE owner_id = ${ownerId} AND type = 'folio'
-      ORDER BY created_at DESC LIMIT 1
-    `
-    if (folioRows[0]?.content) {
-      const excerpt = extractExcerpt(folioRows[0].content as string, 320)
-      if (excerpt && !excerpt.startsWith('-') && !excerpt.startsWith('*')) return excerpt
-    }
-    // Fall back to bio document
-    const bioRows = await sql`
+    const rows = await sql`
       SELECT content FROM documents
       WHERE owner_id = ${ownerId} AND type = 'bio'
       ORDER BY created_at DESC LIMIT 1
     `
-    return bioRows[0]?.content ? extractExcerpt(bioRows[0].content as string, 320) : ''
+    return rows[0]?.content ? extractExcerpt(rows[0].content as string, 320) : ''
   } catch { return '' }
 }
 

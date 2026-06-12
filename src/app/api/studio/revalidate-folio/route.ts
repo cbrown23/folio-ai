@@ -22,11 +22,13 @@ export async function POST() {
 
       const sections: string[] = []
 
-      // Document items — include their full content (e.g. bio intro)
+      // Document items — only include bio documents for the intro; other document
+      // types (memory, resume, etc.) added to the folio composition are ignored here
+      // so they don't bleed into the hero excerpt on the public page.
       for (const item of items.filter((it) => it.document_source)) {
         const rows = await sql`
           SELECT content FROM documents
-          WHERE owner_id = ${ownerId} AND source = ${item.document_source}
+          WHERE owner_id = ${ownerId} AND source = ${item.document_source} AND type = 'bio'
           ORDER BY created_at DESC LIMIT 1
         `
         if (rows[0]?.content) sections.push(rows[0].content as string)
