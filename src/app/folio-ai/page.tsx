@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { nameToSlug } from '@/lib/folios'
 import config from '../../../folio.config'
+import SignInButton from '@/components/SignInButton'
 
 export const metadata = {
   title: 'folio-ai — AI-native portfolios for engineers',
@@ -85,12 +86,9 @@ export default async function FolioHomePage() {
               My folio
             </Link>
           ) : (
-            <Link
-              href="/api/auth/signin/linkedin"
-              className="text-sm px-4 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-            >
+            <SignInButton className="text-sm px-4 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
               Sign in
-            </Link>
+            </SignInButton>
           )}
         </div>
       </nav>
@@ -128,12 +126,9 @@ export default async function FolioHomePage() {
                 Go to my folio →
               </Link>
             ) : (
-              <Link
-                href="/api/auth/signin/linkedin"
-                className="px-6 py-3 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
-              >
+              <SignInButton className="px-6 py-3 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors">
                 Create your folio
-              </Link>
+              </SignInButton>
             )}
             <Link
               href={`/folio-ai/${creatorSlug}`}
