@@ -283,12 +283,15 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map((it, i) => ({
-            document_source:    it.document_source   || null,
-            ref_composition_id: it.ref_composition_id || null,
-            section_label: it.section_label,
-            position: i,
-          })),
+          // Skip items where neither source nor ref has been selected yet
+          items: items
+            .filter((it) => it.document_source || it.ref_composition_id)
+            .map((it, i) => ({
+              document_source:    it.document_source   || null,
+              ref_composition_id: it.ref_composition_id || null,
+              section_label: it.section_label,
+              position: i,
+            })),
         }),
       })
       setDirty(false)
