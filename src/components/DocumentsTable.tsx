@@ -41,7 +41,7 @@ function TypeBadge({ type }: { type: string }) {
 
 type UploadState = 'idle' | 'uploading' | 'success' | 'error'
 
-export default function DocumentsTable() {
+export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -395,6 +395,16 @@ export default function DocumentsTable() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end items-center">
+                        {folioSlug && (
+                          <a
+                            href={`/folio-ai/${folioSlug}/doc?source=${encodeURIComponent(doc.source)}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs px-3 py-1 rounded border border-transparent text-zinc-500 hover:text-indigo-400 hover:border-indigo-800 transition-colors"
+                            title="View / Edit"
+                          >
+                            View
+                          </a>
+                        )}
                         {isPublishable && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handlePublish(doc.source, !doc.is_published) }}

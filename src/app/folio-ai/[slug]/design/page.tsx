@@ -48,7 +48,7 @@ export default async function FolioDesignPage({
       </header>
 
       <div className="flex-1 overflow-hidden">
-        <StudioTabs initialBalance={balance} />
+        <StudioTabs initialBalance={balance} folioSlug={slug} />
       </div>
     </div>
   )

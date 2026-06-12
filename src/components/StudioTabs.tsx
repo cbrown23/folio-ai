@@ -17,9 +17,10 @@ type TokenBalance = { budget: number; used: number; remaining: number }
 
 type Props = {
   initialBalance?: TokenBalance | null
+  folioSlug?: string
 }
 
-export default function StudioTabs({ initialBalance }: Props) {
+export default function StudioTabs({ initialBalance, folioSlug }: Props) {
   const [active, setActive] = useState<Tab>('chat')
   const [restoredConversation, setRestoredConversation] = useState<RestoredConversation>(null)
 
@@ -63,7 +64,7 @@ export default function StudioTabs({ initialBalance }: Props) {
         {active === 'history' && (
           <ConversationHistory onRestore={handleRestore} />
         )}
-        {active === 'documents' && <DocumentsTable />}
+        {active === 'documents' && <DocumentsTable folioSlug={folioSlug} />}
       </div>
     </div>
   )
