@@ -479,18 +479,7 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
                       <button onClick={() => removeItem(idx)} className="text-zinc-600 hover:text-red-400 text-xs transition-colors shrink-0">✕</button>
                     </div>
 
-                    {item.document_source !== null || !item.ref_composition_id ? (
-                      <select
-                        value={item.document_source ?? ''}
-                        onChange={(e) => updateItem(idx, 'document_source', e.target.value)}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      >
-                        <option value="">— select a document —</option>
-                        {docs.map((d) => (
-                          <option key={d.source} value={d.source}>[{d.type}] {d.title}</option>
-                        ))}
-                      </select>
-                    ) : (
+                    {item.ref_composition_id !== null ? (
                       <select
                         value={item.ref_composition_id ?? ''}
                         onChange={(e) => updateItem(idx, 'ref_composition_id', e.target.value)}
@@ -499,6 +488,17 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
                         <option value="">— select a composition —</option>
                         {nonFolioCompositions.map((c) => (
                           <option key={c.id} value={c.id}>[{c.type}] {c.title}{c.published ? ' ●' : ''}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select
+                        value={item.document_source ?? ''}
+                        onChange={(e) => updateItem(idx, 'document_source', e.target.value)}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="">— select a document —</option>
+                        {docs.map((d) => (
+                          <option key={d.source} value={d.source}>[{d.type}] {d.title}</option>
                         ))}
                       </select>
                     )}
