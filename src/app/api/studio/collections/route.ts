@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
-import { getCollections, createCollection } from '@/lib/collections'
+import { getCollections, createCollection, seedCollectionsFromDocuments } from '@/lib/collections'
 import type { CollectionType } from '@/lib/collections'
 import { nameToSlug } from '@/lib/folios'
 import { sql } from '@/lib/db'
@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const session = await auth()
   if (!session?.user?.id) return Response.json({ error: 'signin_required' }, { status: 401 })
+  await seedCollectionsFromDocuments(session.user.id)
   const collections = await getCollections(session.user.id)
   return Response.json({ collections })
 }

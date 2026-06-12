@@ -189,6 +189,31 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'list_collections',
+    description:
+      'List all collections (case studies and architectures) along with their member documents. Use this to show the owner what collections exist and what documents are currently in each one before deciding to publish or modify.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'publish_collection',
+    description:
+      'Republish a collection by recompiling all its member documents into a single polished Markdown page using AI. Use this when the owner asks to regenerate or update a published case study or architecture after adding or changing documents in the collection.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        collection_id: {
+          type: 'string',
+          description: 'The UUID of the collection to publish. Get this from list_collections.',
+        },
+      },
+      required: ['collection_id'],
+    },
+  },
+  {
     name: 'list_content',
     description:
       'List documents in the portfolio vector database. Results include creation date and are ordered newest-first. Optionally filter by type or restrict to documents created on or after a given date.',

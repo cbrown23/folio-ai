@@ -1,6 +1,8 @@
 import { sql } from '@/lib/db'
 import { ingestDocument } from '@/lib/ingest'
 import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
+import { getCollections, getCollectionItems, seedCollectionsFromDocuments } from '@/lib/collections'
+import { publishCollectionById } from '@/lib/publish-collection'
 
 type DocType = 'case-study' | 'architecture' | 'journal' | 'bio' | 'resume' | 'memory' | 'adr' | 'diagram'
 
@@ -202,6 +204,34 @@ export async function executeStudioTool(
       }
 
       return `"${result[0].title}" is now the baseline resume.`
+    }
+
+    case 'list_collections': {
+      await seedCollectionsFromDocuments(ownerId)
+      const collections = await getCollections(ownerId)
+      if (collections.length === 0) return 'No collections yet.'
+
+      const lines: string[] = []
+      for (const col of collections) {
+        const items = await getCollectionItems(col.id)
+        const itemList = items.length > 0
+          ? items.map((it) => `    - [${it.section_label || 'unlabeled'}] ${it.document_title} (${it.document_source})`).join('\n')
+          : '    (no documents yet)'
+        lines.push(
+          `**${col.title}** (${col.type}) — ID: ${col.id}${col.published ? ' ● published' : ''}\n${itemList}`,
+        )
+      }
+      return lines.join('\n\n')
+    }
+
+    case 'publish_collection': {
+      const collectionId = input.collection_id as string
+      try {
+        const { source } = await publishCollectionById(collectionId, ownerId)
+        return `Collection published successfully. The compiled document is now live at source: ${source}`
+      } catch (err) {
+        return `Publish failed: ${err instanceof Error ? err.message : String(err)}`
+      }
     }
 
     case 'list_content': {

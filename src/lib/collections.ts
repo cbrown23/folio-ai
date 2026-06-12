@@ -47,6 +47,63 @@ async function ensureTables() {
   `
 }
 
+export async function seedCollectionsFromDocuments(ownerId: string): Promise<void> {
+  await ensureTables()
+
+  // Find distinct case-study / architecture docs that have no collection yet
+  const docs = await sql`
+    SELECT DISTINCT ON (source) source, title, type
+    FROM documents
+    WHERE owner_id = ${ownerId}
+      AND type IN ('case-study', 'architecture')
+    ORDER BY source, created_at DESC
+  `
+
+  for (const doc of docs) {
+    const source = doc.source as string
+    const type = doc.type as CollectionType
+    const title = doc.title as string
+
+    // Derive slug from source path: content/case-studies/my-slug.md → my-slug
+    const slug = source
+      .replace(/^content\/case-studies\//, '')
+      .replace(/^content\/architecture\//, '')
+      .replace(/\.md$/, '')
+
+    if (!slug) continue
+
+    const existing = await sql`
+      SELECT id FROM collections WHERE owner_id = ${ownerId} AND slug = ${slug} LIMIT 1
+    `
+    if (existing.length > 0) continue
+
+    // Create the collection
+    const created = await sql`
+      INSERT INTO collections (owner_id, type, title, slug, published)
+      VALUES (
+        ${ownerId}, ${type}, ${title}, ${slug},
+        EXISTS(
+          SELECT 1 FROM documents
+          WHERE owner_id = ${ownerId} AND source = ${source}
+            AND metadata->>'published' = 'true'
+          LIMIT 1
+        )
+      )
+      ON CONFLICT (owner_id, slug) DO NOTHING
+      RETURNING id
+    `
+    if (created.length === 0) continue
+
+    const collectionId = created[0].id as string
+    const defaultLabel = type === 'case-study' ? 'Case Study' : 'Architecture'
+
+    await sql`
+      INSERT INTO collection_items (collection_id, document_source, section_label, position)
+      VALUES (${collectionId}, ${source}, ${defaultLabel}, 0)
+    `
+  }
+}
+
 export async function getCollections(ownerId: string): Promise<Collection[]> {
   await ensureTables()
   const rows = await sql`
