@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/auth'
 import { getAllFolios } from '@/lib/folios'
+import AdminFolioTable from '@/components/AdminFolioTable'
 
 export const metadata = {
   title: 'Admin — folio-ai',
@@ -51,57 +52,7 @@ export default async function FolioAdminPage() {
 
         {/* Folio table */}
         <h2 className="text-lg font-semibold text-white mb-4">Folios</h2>
-        <div className="rounded-xl border border-zinc-800 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-900/60 border-b border-zinc-800">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs text-zinc-500 font-medium">Name</th>
-                <th className="text-left px-4 py-3 text-xs text-zinc-500 font-medium">Slug</th>
-                <th className="text-left px-4 py-3 text-xs text-zinc-500 font-medium">Email</th>
-                <th className="text-right px-4 py-3 text-xs text-zinc-500 font-medium">Used</th>
-                <th className="text-right px-4 py-3 text-xs text-zinc-500 font-medium">Budget</th>
-                <th className="text-right px-4 py-3 text-xs text-zinc-500 font-medium">%</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {folios.map((folio) => {
-                const pct = folio.token_budget > 0
-                  ? Math.round((folio.tokens_used / folio.token_budget) * 100)
-                  : 0
-                return (
-                  <tr key={folio.id} className="hover:bg-zinc-900/40 transition-colors">
-                    <td className="px-4 py-3 text-zinc-200 font-medium">{folio.name}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-zinc-400">{folio.slug}</td>
-                    <td className="px-4 py-3 text-zinc-400 text-xs">{folio.email}</td>
-                    <td className="px-4 py-3 text-right text-zinc-300">{(folio.tokens_used / 1000).toFixed(1)}k</td>
-                    <td className="px-4 py-3 text-right text-zinc-500">{(folio.token_budget / 1000).toFixed(0)}k</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`text-xs font-medium ${pct > 80 ? 'text-amber-400' : 'text-zinc-400'}`}>
-                        {pct}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/folio-ai/${folio.slug}`}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                      >
-                        View →
-                      </Link>
-                    </td>
-                  </tr>
-                )
-              })}
-              {folios.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-600">
-                    No folios yet
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <AdminFolioTable folios={folios} />
       </main>
     </div>
   )
