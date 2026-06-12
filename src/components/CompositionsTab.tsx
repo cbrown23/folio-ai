@@ -296,12 +296,19 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     setPublishError('')
     setPublishedSource('')
     try {
-      const res = await fetch(`/api/studio/compositions/${selected.id}/publish`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-      setPublishedSource(data.source)
-      setSelected((prev) => prev ? { ...prev, published: true } : prev)
-      setCompositions((prev) => prev.map((c) => c.id === selected.id ? { ...c, published: true } : c))
+      if (selected.type === 'folio') {
+        // Folio composition just needs revalidation — no AI compilation
+        await fetch('/api/studio/revalidate-folio', { method: 'POST' })
+        setSelected((prev) => prev ? { ...prev, published: true } : prev)
+        setCompositions((prev) => prev.map((c) => c.id === selected.id ? { ...c, published: true } : c))
+      } else {
+        const res = await fetch(`/api/studio/compositions/${selected.id}/publish`, { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+        setPublishedSource(data.source)
+        setSelected((prev) => prev ? { ...prev, published: true } : prev)
+        setCompositions((prev) => prev.map((c) => c.id === selected.id ? { ...c, published: true } : c))
+      }
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Publish failed')
     } finally { setPublishing(false) }
@@ -358,10 +365,10 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
         {error && <div className="px-4 py-3 text-xs text-red-400">{error}</div>}
 
         <ul className="flex-1 overflow-y-auto divide-y divide-zinc-800">
-          {compositions.length === 0 && !creating && (
+          {compositions.filter((c) => c.type !== 'folio').length === 0 && !creating && (
             <li className="px-4 py-8 text-xs text-zinc-600 text-center">No compositions yet</li>
           )}
-          {compositions.map((comp) => (
+          {compositions.filter((c) => c.type !== 'folio').map((comp) => (
             <li
               key={comp.id}
               onClick={() => loadItems(comp)}
@@ -383,6 +390,20 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
             </li>
           ))}
         </ul>
+        {/* Folio composition — pinned at bottom */}
+        {compositions.filter((c) => c.type === 'folio').map((comp) => (
+          <div
+            key={comp.id}
+            onClick={() => loadItems(comp)}
+            className={`shrink-0 border-t border-zinc-700 px-4 py-3 cursor-pointer transition-colors ${selected?.id === comp.id ? 'bg-violet-950/40' : 'hover:bg-zinc-800/30'}`}
+          >
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono shrink-0 ${typeBadge('folio')}`}>folio</span>
+              <span className="text-xs text-zinc-300 flex-1 truncate">{comp.title}</span>
+              <span className="text-[10px] text-zinc-600">page layout</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Main */}
@@ -416,7 +437,11 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
                 disabled={publishing || items.length === 0}
                 className="text-xs px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors"
               >
-                {publishing ? 'Publishing…' : selected.published ? 'Republish' : 'Publish'}
+                {publishing
+                  ? (selected.type === 'folio' ? 'Applying…' : 'Publishing…')
+                  : selected.type === 'folio'
+                    ? 'Apply to folio'
+                    : selected.published ? 'Republish' : 'Publish'}
               </button>
             </div>
           </div>

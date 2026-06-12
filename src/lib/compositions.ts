@@ -290,6 +290,13 @@ export async function setCompositionItems(
 export async function seedCompositionsFromDocuments(ownerId: string): Promise<void> {
   await ensureBuiltInTypes(ownerId)
 
+  // Always ensure the folio composition exists (the one that controls the public page layout)
+  await sql`
+    INSERT INTO compositions (owner_id, type, title, slug, published)
+    VALUES (${ownerId}, 'folio', 'Folio Page', 'folio-page', FALSE)
+    ON CONFLICT (owner_id, slug) DO NOTHING
+  `
+
   const docs = await sql`
     SELECT DISTINCT ON (source) source, title, type
     FROM documents
