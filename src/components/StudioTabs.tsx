@@ -21,9 +21,39 @@ type Props = {
   folioSlug?: string
 }
 
+const TAB_META: Record<Tab, { label: string; short: string; detail: string }> = {
+  chat: {
+    label: 'Chat',
+    short: 'Draft content, manage documents, and control your portfolio with your AI assistant.',
+    detail: `Your studio assistant has full context on your portfolio and can take real actions via tool calls. Ask it to write case studies, generate Mermaid diagrams, search existing content, save memories about people you've worked with, or publish compositions. It runs a ReAct loop — it reasons, calls tools, observes results, and reasons again — so complex multi-step tasks work in a single conversation. Everything it saves persists immediately to your portfolio.`,
+  },
+  history: {
+    label: 'History',
+    short: 'Browse and restore past conversations.',
+    detail: `All chat sessions are saved automatically with a title derived from the first message. Conversations are listed newest-first. Click any entry to restore the full message history in the Chat tab — you can pick up exactly where you left off. Rename any conversation by clicking its title in the chat toolbar.`,
+  },
+  documents: {
+    label: 'Documents',
+    short: 'Encoded documents powering semantic search and AI context retrieval.',
+    detail: `Every document you save — whether written in Chat or uploaded here — is chunked into overlapping segments, run through an embedding model, and stored as vectors in pgvector. This encoding is what makes semantic search work: the AI can find relevant context even when the query wording differs from the document text. The table shows all encoded chunks grouped by source file. Chunks, type, and creation date are all visible. You can upload new files, toggle published status on portfolio pieces, download raw Markdown, or delete documents to remove them from the context pool entirely.`,
+  },
+  compositions: {
+    label: 'Compositions',
+    short: 'Build and publish pages by combining documents and other compositions.',
+    detail: `A composition is a named, publishable page assembled from one or more source documents — and optionally from other compositions. When you hit Publish, Claude reads all the source material and generates a polished Markdown page in one pass. Compositions can nest: include another composition as an item and its compiled content is embedded inline. The Folio Page composition is special — its items determine which compositions appear as sections on your public portfolio page, and in what order. Use "Apply to folio" to push layout changes live without recompiling content.`,
+  },
+}
+
 export default function StudioTabs({ initialBalance, folioSlug }: Props) {
   const [active, setActive] = useState<Tab>('chat')
+  const [expanded, setExpanded] = useState(false)
   const [restoredConversation, setRestoredConversation] = useState<RestoredConversation>(null)
+
+  // Collapse detail when switching tabs
+  function switchTab(tab: Tab) {
+    if (tab !== active) setExpanded(false)
+    setActive(tab)
+  }
 
   // Auto-load the most recently updated conversation on mount
   useEffect(() => {
@@ -66,6 +96,8 @@ export default function StudioTabs({ initialBalance, folioSlug }: Props) {
     setActive('chat')
   }
 
+  const meta = TAB_META[active]
+
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
@@ -73,16 +105,39 @@ export default function StudioTabs({ initialBalance, folioSlug }: Props) {
         {(['chat', 'history', 'documents', 'compositions'] as Tab[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActive(tab)}
-            className={`px-4 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+            onClick={() => switchTab(tab)}
+            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
               active === tab
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            {tab}
+            {TAB_META[tab].label}
           </button>
         ))}
+      </div>
+
+      {/* Description strip */}
+      <div className="shrink-0 border-b border-zinc-800/70 bg-zinc-900/30 px-4 py-2">
+        <div className="flex items-start gap-2">
+          <p className="flex-1 text-xs text-zinc-500 leading-relaxed">{meta.short}</p>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? 'Hide details' : 'Show details'}
+            className={`shrink-0 mt-px text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
+              expanded
+                ? 'border-indigo-600/60 text-indigo-400 bg-indigo-950/30'
+                : 'border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'
+            }`}
+          >
+            {expanded ? '▲ less' : 'ⓘ more'}
+          </button>
+        </div>
+        {expanded && (
+          <p className="mt-2 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/60 pt-2">
+            {meta.detail}
+          </p>
+        )}
       </div>
 
       {/* Tab content */}
