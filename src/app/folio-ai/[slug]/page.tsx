@@ -174,7 +174,7 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
               {caseStudies.map((doc) => (
                 <Link
                   key={doc.slug}
-                  href={`/case-studies/${doc.slug}`}
+                  href={`/folio-ai/${slug}/case-studies/${doc.slug}`}
                   className="group rounded-xl border border-zinc-800 bg-zinc-900/40 hover:border-indigo-700 p-6 flex flex-col gap-3 transition-colors"
                 >
                   <span className="text-xs font-mono text-indigo-400">Case Study</span>
@@ -204,7 +204,7 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
               {architectures.map((doc) => (
                 <Link
                   key={doc.slug}
-                  href={`/architecture/${doc.slug}`}
+                  href={`/folio-ai/${slug}/architecture/${doc.slug}`}
                   className="group rounded-xl border border-zinc-800 bg-zinc-900/40 hover:border-indigo-700 p-6 flex flex-col gap-3 transition-colors"
                 >
                   <span className="text-xs font-mono text-indigo-400">Architecture</span>
