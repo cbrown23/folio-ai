@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import StudioChat from './StudioChat'
 import DocumentsTable from './DocumentsTable'
 import ConversationHistory, { type StoredConversation } from './ConversationHistory'
@@ -44,15 +45,25 @@ const TAB_META: Record<Tab, { label: string; short: string; detail: string }> = 
   },
 }
 
+const VALID_TABS: Tab[] = ['chat', 'history', 'documents', 'compositions']
+
 export default function StudioTabs({ initialBalance, folioSlug }: Props) {
-  const [active, setActive] = useState<Tab>('chat')
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const tabParam     = searchParams.get('tab') as Tab | null
+  const initialTab   = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'chat'
+
+  const [active, setActive] = useState<Tab>(initialTab)
   const [expanded, setExpanded] = useState(false)
   const [restoredConversation, setRestoredConversation] = useState<RestoredConversation>(null)
 
-  // Collapse detail when switching tabs
+  // Collapse detail when switching tabs; persist tab to URL
   function switchTab(tab: Tab) {
     if (tab !== active) setExpanded(false)
     setActive(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', tab)
+    router.replace(`?${params.toString()}`, { scroll: false })
   }
 
   // Auto-load the most recently updated conversation on mount
