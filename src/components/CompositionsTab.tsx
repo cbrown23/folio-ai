@@ -176,6 +176,7 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchAll() }, [fetchAll])
 
   async function loadItems(comp: Composition) {

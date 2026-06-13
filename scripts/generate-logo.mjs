@@ -1,5 +1,4 @@
 import sharp from 'sharp'
-import { writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -12,7 +11,6 @@ const sizes = [
 ]
 
 function buildSvg(size, fontSize, letterSpacing) {
-  const pad = Math.round(size * 0.1)
   return `
 <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${size}" height="${size}" rx="${Math.round(size * 0.12)}" fill="#020817"/>
