@@ -15,11 +15,23 @@ import RefreshFolioButton from '@/components/RefreshFolioButton'
 
 export const revalidate = 300
 
-type CompositionCard = Composition & {
-  type_name: string
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type FolioCard = {
+  id: string
+  title: string
   excerpt: string
   viewer_href: string
+  published: boolean  // false = draft, shown to owner only
 }
+
+type FolioSection = {
+  label: string    // section_label from folio item — this is the heading on the page
+  anchor: string   // URL-safe anchor derived from label
+  cards: FolioCard[]
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function extractExcerpt(content: string, maxLen = 220): string {
   for (const line of content.split('\n')) {
@@ -31,39 +43,17 @@ function extractExcerpt(content: string, maxLen = 220): string {
   return ''
 }
 
-function compositionViewerHref(folioSlug: string, comp: Composition): string {
-  if (comp.type === 'architecture') return `/folio-ai/${folioSlug}/architecture/${comp.slug}`
-  if (comp.type === 'case-study')   return `/folio-ai/${folioSlug}/case-studies/${comp.slug}`
-  const typeFolder = comp.type.replace(/-/g, '-')
-  return `/folio-ai/${folioSlug}/doc?source=content/${typeFolder}/${comp.slug}.md`
+function labelToAnchor(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section'
 }
 
-async function resolveCards(
-  compositions: Array<Composition & { type_name: string }>,
-  ownerId: string,
-  folioSlug: string,
-): Promise<CompositionCard[]> {
-  return Promise.all(
-    compositions.map(async (comp) => {
-      const typeFolder = comp.type === 'case-study' ? 'case-studies' : comp.type
-      const source = `content/${typeFolder}/${comp.slug}.md`
-      let excerpt = ''
-      try {
-        const rows = await sql`
-          SELECT content FROM documents
-          WHERE owner_id = ${ownerId} AND source = ${source}
-          ORDER BY created_at DESC LIMIT 1
-        `
-        if (rows[0]?.content) excerpt = extractExcerpt(rows[0].content as string)
-      } catch { /* no content yet */ }
-      return {
-        ...comp,
-        excerpt,
-        viewer_href: compositionViewerHref(folioSlug, comp),
-      }
-    }),
-  )
+function compositionViewerHref(folioSlug: string, comp: Pick<Composition, 'type' | 'slug'>): string {
+  if (comp.type === 'architecture') return `/folio-ai/${folioSlug}/architecture/${comp.slug}`
+  if (comp.type === 'case-study')   return `/folio-ai/${folioSlug}/case-studies/${comp.slug}`
+  return `/folio-ai/${folioSlug}/doc?source=content/${comp.type}/${comp.slug}.md`
 }
+
+// ── Data ──────────────────────────────────────────────────────────────────────
 
 async function fetchIntroExcerpt(ownerId: string): Promise<string> {
   try {
@@ -76,88 +66,184 @@ async function fetchIntroExcerpt(ownerId: string): Promise<string> {
   } catch { return '' }
 }
 
-async function buildSections(ownerId: string, folioSlug: string, isOwner: boolean): Promise<
-  Array<{ typeName: string; typeSlug: string; cards: CompositionCard[] }>
-> {
-  let orderedCompositions: Array<Composition & { type_name: string }> = []
+async function buildSections(
+  ownerId: string,
+  folioSlug: string,
+  isOwner: boolean,
+): Promise<FolioSection[]> {
   const folioComp = await getFolioComposition(ownerId)
-  let folioConfigured = false
 
-  if (folioComp) {
-    const items = await getCompositionItems(folioComp.id)
-    const compositionRefs = items.filter((it) => it.ref_composition_id)
-    console.log('[folio] items=%d  refs=%d  refIds=%j', items.length, compositionRefs.length, compositionRefs.map((r) => r.ref_composition_id))
-    if (compositionRefs.length > 0) {
-      folioConfigured = true
-
-      // Owner sees all compositions (including drafts); visitors see published only
-      const allRows = isOwner
-        ? await sql`
-            SELECT c.id, c.owner_id, c.type, c.title, c.slug, c.published, c.created_at, c.updated_at,
-                   COALESCE(ct.name, c.type)  AS type_name,
-                   COALESCE(ct.position, 99)  AS type_position
-            FROM compositions c
-            LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
-            WHERE c.owner_id = ${ownerId} AND c.type != 'folio'
-          `
-        : await sql`
-            SELECT c.id, c.owner_id, c.type, c.title, c.slug, c.published, c.created_at, c.updated_at,
-                   COALESCE(ct.name, c.type)  AS type_name,
-                   COALESCE(ct.position, 99)  AS type_position
-            FROM compositions c
-            LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
-            WHERE c.owner_id = ${ownerId} AND c.type != 'folio' AND c.published = TRUE
-          `
-
-      console.log('[folio] allRows=%d  ids=%j', allRows.length, (allRows as Array<{ id: string; type: string; title: string }>).map((r) => ({ id: r.id, type: r.type, title: r.title })))
-      const byId = new Map(
-        (allRows as Array<Composition & { type_name: string }>).map((r) => [r.id, r])
-      )
-      orderedCompositions = compositionRefs
-        .map((it) => byId.get(it.ref_composition_id as string))
-        .filter(Boolean) as Array<Composition & { type_name: string }>
-      console.log('[folio] orderedCompositions=%d  types=%j', orderedCompositions.length, orderedCompositions.map((c) => ({ id: c.id, type: c.type, title: c.title })))
-    }
-  }
-
-  // Fallback when folio layout is unconfigured
-  if (!folioConfigured) {
-    orderedCompositions = isOwner
+  // ── Fallback: no folio composition configured ──────────────────────────────
+  // Group all (owner) or published (visitor) compositions by type_name.
+  if (!folioComp) {
+    const comps = isOwner
       ? (await sql`
           SELECT c.id, c.owner_id, c.type, c.title, c.slug, c.published, c.created_at, c.updated_at,
-                 COALESCE(ct.name, c.type)  AS type_name,
-                 COALESCE(ct.position, 99)  AS type_position
+                 COALESCE(ct.name, c.type) AS type_name
           FROM compositions c
           LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
           WHERE c.owner_id = ${ownerId} AND COALESCE(ct.folio_visible, TRUE) AND c.type != 'folio'
           ORDER BY COALESCE(ct.position, 99) ASC, c.updated_at DESC
         `) as Array<Composition & { type_name: string }>
       : await getPublishedCompositionsForFolio(ownerId)
+
+    return buildFallbackSections(comps, ownerId, folioSlug)
   }
 
-  if (orderedCompositions.length === 0) return []
+  // ── Primary: use folio composition items ──────────────────────────────────
+  const items = await getCompositionItems(folioComp.id)
+  const contentItems = items.filter((it) => it.document_source || it.ref_composition_id)
 
-  const cards = await resolveCards(orderedCompositions, ownerId, folioSlug)
+  if (contentItems.length === 0) {
+    if (!isOwner) return []
+    const comps = await getPublishedCompositionsForFolio(ownerId)
+    return buildFallbackSections(comps as Array<Composition & { type_name: string }>, ownerId, folioSlug)
+  }
 
-  // Group by type, preserving first-seen order
-  const typeOrder: string[] = []
-  const typeNames: Record<string, string> = {}
-  const grouped: Record<string, CompositionCard[]> = {}
-  for (const card of cards) {
-    if (!grouped[card.type]) {
-      typeOrder.push(card.type)
-      typeNames[card.type] = card.type_name
-      grouped[card.type] = []
+  // Batch-fetch all compositions for the owner (used by composition-ref items)
+  const allComps = isOwner
+    ? (await sql`
+        SELECT c.id, c.type, c.title, c.slug, c.published,
+               COALESCE(ct.name, c.type) AS type_name
+        FROM compositions c
+        LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
+        WHERE c.owner_id = ${ownerId} AND c.type != 'folio'
+      `) as Array<{ id: string; type: string; title: string; slug: string; published: boolean; type_name: string }>
+    : (await sql`
+        SELECT c.id, c.type, c.title, c.slug, c.published,
+               COALESCE(ct.name, c.type) AS type_name
+        FROM compositions c
+        LEFT JOIN composition_types ct ON ct.slug = c.type AND ct.owner_id = c.owner_id
+        WHERE c.owner_id = ${ownerId} AND c.type != 'folio' AND c.published = TRUE
+      `) as Array<{ id: string; type: string; title: string; slug: string; published: boolean; type_name: string }>
+
+  const compById = new Map(allComps.map((c) => [c.id, c]))
+
+  // Resolve each folio item to a card
+  const resolved = await Promise.all(
+    contentItems.map(async (item): Promise<{ sectionLabel: string; card: FolioCard } | null> => {
+
+      if (item.ref_composition_id) {
+        const comp = compById.get(item.ref_composition_id)
+        if (!comp) return null  // composition was deleted or visitor can't see draft
+
+        const typeFolder = comp.type === 'case-study' ? 'case-studies' : comp.type
+        const source = `content/${typeFolder}/${comp.slug}.md`
+        let excerpt = ''
+        try {
+          const rows = await sql`
+            SELECT content FROM documents
+            WHERE owner_id = ${ownerId} AND source = ${source}
+            ORDER BY created_at DESC LIMIT 1
+          `
+          if (rows[0]?.content) excerpt = extractExcerpt(rows[0].content as string)
+        } catch { /* no compiled doc yet */ }
+
+        // section_label on the folio item IS the section title; fall back to type name
+        const sectionLabel = item.section_label?.trim() || comp.type_name
+
+        return {
+          sectionLabel,
+          card: {
+            id: item.id,
+            title: comp.title,
+            excerpt,
+            viewer_href: compositionViewerHref(folioSlug, comp),
+            published: comp.published,
+          },
+        }
+      }
+
+      if (item.document_source) {
+        const rows = await sql`
+          SELECT title, content FROM documents
+          WHERE owner_id = ${ownerId} AND source = ${item.document_source}
+          ORDER BY created_at DESC LIMIT 1
+        `
+        const doc = rows[0]
+        if (!doc) return null
+
+        const sectionLabel = item.section_label?.trim() || 'Documents'
+
+        return {
+          sectionLabel,
+          card: {
+            id: item.id,
+            title: (doc.title as string) || item.document_source || 'Document',
+            excerpt: doc.content ? extractExcerpt(doc.content as string) : '',
+            viewer_href: `/folio-ai/${folioSlug}/doc?source=${encodeURIComponent(item.document_source!)}`,
+            published: true,
+          },
+        }
+      }
+
+      return null
+    }),
+  )
+
+  // Group by sectionLabel, preserving order of first occurrence
+  const sectionOrder: string[] = []
+  const grouped: Record<string, FolioCard[]> = {}
+
+  for (const r of resolved) {
+    if (!r) continue
+    if (!grouped[r.sectionLabel]) {
+      sectionOrder.push(r.sectionLabel)
+      grouped[r.sectionLabel] = []
     }
-    grouped[card.type].push(card)
+    grouped[r.sectionLabel].push(r.card)
   }
 
-  return typeOrder.map((t) => ({
-    typeName: typeNames[t],
-    typeSlug: t,
-    cards: grouped[t],
-  }))
+  return sectionOrder
+    .map((label) => ({ label, anchor: labelToAnchor(label), cards: grouped[label] }))
+    .filter((s) => s.cards.length > 0)
 }
+
+// Fallback grouping (no folio composition) — group published comps by type_name
+async function buildFallbackSections(
+  comps: Array<Composition & { type_name: string }>,
+  ownerId: string,
+  folioSlug: string,
+): Promise<FolioSection[]> {
+  if (comps.length === 0) return []
+
+  const sectionOrder: string[] = []
+  const grouped: Record<string, FolioCard[]> = {}
+
+  await Promise.all(
+    comps.map(async (comp) => {
+      const typeFolder = comp.type === 'case-study' ? 'case-studies' : comp.type
+      const source = `content/${typeFolder}/${comp.slug}.md`
+      let excerpt = ''
+      try {
+        const rows = await sql`
+          SELECT content FROM documents WHERE owner_id = ${ownerId} AND source = ${source}
+          ORDER BY created_at DESC LIMIT 1
+        `
+        if (rows[0]?.content) excerpt = extractExcerpt(rows[0].content as string)
+      } catch { /* no doc yet */ }
+
+      const label = comp.type_name
+      if (!grouped[label]) {
+        sectionOrder.push(label)
+        grouped[label] = []
+      }
+      grouped[label].push({
+        id: comp.id,
+        title: comp.title,
+        excerpt,
+        viewer_href: compositionViewerHref(folioSlug, comp),
+        published: comp.published,
+      })
+    }),
+  )
+
+  return sectionOrder
+    .map((label) => ({ label, anchor: labelToAnchor(label), cards: grouped[label] }))
+    .filter((s) => s.cards.length > 0)
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -183,7 +269,6 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
   ])
 
   const hasContent = sections.length > 0
-  const firstSection = sections[0]
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -196,11 +281,11 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
           <div className="flex items-center gap-3">
             {sections.map((section) => (
               <a
-                key={section.typeSlug}
-                href={`#${section.typeSlug}`}
+                key={section.anchor}
+                href={`#${section.anchor}`}
                 className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors hidden sm:block"
               >
-                {section.typeName}
+                {section.label}
               </a>
             ))}
             <a href="#contact" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors hidden sm:block">Contact</a>
@@ -245,9 +330,9 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
             </p>
           )}
           <div className="flex flex-wrap gap-4">
-            {firstSection && (
+            {hasContent && (
               <a
-                href={`#${firstSection.typeSlug}`}
+                href={`#${sections[0].anchor}`}
                 className="px-5 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
               >
                 View work
@@ -263,14 +348,14 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
         </div>
       </section>
 
-      {/* Dynamic sections — one per composition type */}
+      {/* Content sections — one per unique section_label */}
       {sections.map((section) => (
-        <section key={section.typeSlug} id={section.typeSlug} className="border-t border-zinc-800/60 py-20">
+        <section key={section.anchor} id={section.anchor} className="border-t border-zinc-800/60 py-20">
           <div className="mx-auto max-w-5xl px-6">
             <p className="text-sm font-mono text-indigo-400 mb-3 tracking-widest uppercase">
-              {section.typeSlug.replace(/-/g, ' ')}
+              {section.label}
             </p>
-            <h2 className="text-3xl font-bold text-white mb-12">{section.typeName}</h2>
+            <h2 className="text-3xl font-bold text-white mb-12">{section.label}</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {section.cards.map((card) => card.published ? (
                 <Link
@@ -278,7 +363,6 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
                   href={card.viewer_href}
                   className="group rounded-xl border border-zinc-800 bg-zinc-900/40 hover:border-indigo-700 p-6 flex flex-col gap-3 transition-colors"
                 >
-                  <span className="text-xs font-mono text-indigo-400">{section.typeName}</span>
                   <h3 className="text-base font-semibold text-white leading-snug">{card.title}</h3>
                   {card.excerpt && (
                     <p className="text-sm text-zinc-400 leading-relaxed flex-1">{card.excerpt}</p>
@@ -293,7 +377,6 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
                   className="rounded-xl border border-zinc-800/50 border-dashed bg-zinc-900/20 p-6 flex flex-col gap-3 opacity-60"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-indigo-400">{section.typeName}</span>
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-700/50 bg-amber-900/30 text-amber-400">draft</span>
                   </div>
                   <h3 className="text-base font-semibold text-white leading-snug">{card.title}</h3>
