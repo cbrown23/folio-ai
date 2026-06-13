@@ -20,7 +20,7 @@ const config = {
   site: {
     title:       process.env.SITE_TITLE       ?? 'folio-ai',
     description: process.env.SITE_DESCRIPTION ?? 'AI-native portfolio — architecture case studies and an embedded AI assistant.',
-    url:         process.env.SITE_URL         ?? 'https://example.com',
+    url:         process.env.SITE_URL         || 'https://example.com',
   },
 
   agent: {
