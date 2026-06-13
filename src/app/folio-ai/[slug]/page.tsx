@@ -420,7 +420,7 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
 
       <ChatButton
         apiPath={`/api/folio-ai/${slug}/chat`}
-        capabilitiesUrl={`/folio-ai/${slug}/assistant`}
+        capabilitiesUrl="/folio-ai/assistant"
       />
     </div>
   )

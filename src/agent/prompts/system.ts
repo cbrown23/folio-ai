@@ -11,9 +11,7 @@ export function buildSystemPrompt(
 
   const bioSection = `${config.owner.name} is a ${config.owner.title} based in ${config.owner.location}.`
 
-  const capabilitiesUrl = config.agent.folioSlug
-    ? `${config.site.url}/folio-ai/${config.agent.folioSlug}/assistant`
-    : null
+  const capabilitiesUrl = `${config.site.url}/folio-ai/assistant`
 
   return `You are ${config.agent.assistantName}, the AI assistant on ${config.owner.name}'s portfolio site (${config.site.url}).
 
@@ -35,7 +33,7 @@ ${relevantContext ? `## Additional Relevant Context\n\nThe following content was
 - Capture visitor leads when someone shares their name, email, or expresses specific interest (use the take_note tool)
 - Run a job fit analysis when a recruiter or hiring manager shares a job description (use the analyze_job_fit tool)
 
-When a visitor asks what you can do, summarise the capabilities above in 3–5 short bullets, then invite them to see the full guide with example questions${capabilitiesUrl ? `: ${capabilitiesUrl}` : '.'}
+When a visitor asks what you can do, summarise the capabilities above in 3–5 short bullets, then invite them to see the full guide: [See what I can do →](${capabilitiesUrl})
 
 ${visitorConnection ? `## About this visitor
 

@@ -13,35 +13,48 @@ type Message = {
   toolStatus?: string | null
 }
 
-const URL_REGEX = /https?:\/\/[^\s)>\]"*]+/g
+// Matches [text](url) markdown links OR bare https:// URLs
+const LINK_REGEX = /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)|(https?:\/\/[^\s)>\]"*]+)/g
 
 function MessageContent({ content }: { content: string }) {
   const parts: React.ReactNode[] = []
   let last = 0
   let match: RegExpExecArray | null
 
-  URL_REGEX.lastIndex = 0
-  while ((match = URL_REGEX.exec(content)) !== null) {
-    if (match.index > last) {
-      parts.push(content.slice(last, match.index))
+  LINK_REGEX.lastIndex = 0
+  while ((match = LINK_REGEX.exec(content)) !== null) {
+    if (match.index > last) parts.push(content.slice(last, match.index))
+
+    if (match[1] !== undefined) {
+      // Markdown link: [text](url)
+      const text = match[1]
+      const url  = match[2]
+      const external = url.startsWith('http')
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target={external ? '_blank' : '_self'}
+          rel={external ? 'noopener noreferrer' : undefined}
+          className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
+        >{text}</a>
+      )
+    } else {
+      // Bare https:// URL
+      const url = match[3]
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300 break-all"
+        >{url}</a>
+      )
     }
-    const url = match[0]
-    parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300 break-all"
-      >
-        {url}
-      </a>
-    )
-    last = match.index + url.length
+    last = match.index + match[0].length
   }
-  if (last < content.length) {
-    parts.push(content.slice(last))
-  }
+  if (last < content.length) parts.push(content.slice(last))
 
   return <span className="whitespace-pre-wrap">{parts}</span>
 }
@@ -53,7 +66,7 @@ type ChatButtonProps = {
 
 export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: ChatButtonProps) {
   const greeting = capabilitiesUrl
-    ? `${config.agent.greeting}\n\nSee everything I can do: ${capabilitiesUrl}`
+    ? `${config.agent.greeting}\n\n[See what I can do →](${capabilitiesUrl})`
     : config.agent.greeting
 
   const [open, setOpen] = useState(false)
