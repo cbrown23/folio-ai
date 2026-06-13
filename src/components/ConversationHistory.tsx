@@ -37,6 +37,7 @@ export default function ConversationHistory({ onRestore }: Props) {
     }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchConversations() }, [fetchConversations])
 
   async function handleRestore(conv: StoredConversation) {

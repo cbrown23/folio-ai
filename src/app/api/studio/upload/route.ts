@@ -1,18 +1,13 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
 import { ingestDocument, type DocType } from '@/lib/ingest'
-import config from '../../../../../folio.config'
 
 export const dynamic = 'force-dynamic'
 
 const ALLOWED_EXTENSIONS = ['.md', '.txt', '.pdf', '.docx']
-const MAX_SIZE_BYTES = 500_000 // 500KB
+const MAX_SIZE_BYTES = 500_000
 
-const VALID_TYPES: DocType[] = ['bio', 'resume', 'case-study', 'journal', 'memory', 'job-req']
-
-function isOwner(email?: string | null) {
-  return !!email && email === (process.env.OWNER_EMAIL ?? config.owner.email)
-}
+const VALID_TYPES: DocType[] = ['bio', 'resume', 'case-study', 'architecture', 'journal', 'memory', 'job-req']
 
 async function extractText(content: string, fileType: 'text' | 'pdf' | 'docx'): Promise<string> {
   if (fileType === 'text') return content
@@ -41,8 +36,8 @@ type UploadBody = {
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user || !isOwner(session.user.email)) {
-    return Response.json({ error: 'forbidden' }, { status: 403 })
+  if (!session?.user?.id) {
+    return Response.json({ error: 'signin_required' }, { status: 401 })
   }
 
   let body: UploadBody
@@ -86,7 +81,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'No text could be extracted from the file' }, { status: 422 })
   }
 
-  const ownerId = process.env.OWNER_ID ?? 'default'
+  const ownerId = session.user.id
   const slug = filename.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
   const source = `upload/${type}/${slug}`
   const title = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')

@@ -13,43 +13,145 @@ type Message = {
   toolStatus?: string | null
 }
 
-const URL_REGEX = /https?:\/\/[^\s)>\]"*]+/g
+const CAPABILITIES_PATH = '/folio-ai/assistant'
 
-function MessageContent({ content }: { content: string }) {
+function MessageContent({ content, onCapabilitiesOpen }: {
+  content: string
+  onCapabilitiesOpen?: () => void
+}) {
+  // Matches [text](url) markdown links OR bare https:// URLs — new instance per render avoids lastIndex mutation
+  const LINK_REGEX = /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)|(https?:\/\/[^\s)>\]"*]+)/g
   const parts: React.ReactNode[] = []
   let last = 0
   let match: RegExpExecArray | null
 
-  URL_REGEX.lastIndex = 0
-  while ((match = URL_REGEX.exec(content)) !== null) {
-    if (match.index > last) {
-      parts.push(content.slice(last, match.index))
+  while ((match = LINK_REGEX.exec(content)) !== null) {
+    if (match.index > last) parts.push(content.slice(last, match.index))
+
+    if (match[1] !== undefined) {
+      // Markdown link: [text](url)
+      const text = match[1]
+      const url  = match[2]
+      // Intercept capabilities link — open drawer instead of navigating
+      if (onCapabilitiesOpen && url === CAPABILITIES_PATH) {
+        parts.push(
+          <button
+            key={match.index}
+            onClick={onCapabilitiesOpen}
+            className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
+          >{text}</button>
+        )
+      } else {
+        const external = url.startsWith('http')
+        parts.push(
+          <a
+            key={match.index}
+            href={url}
+            target={external ? '_blank' : '_self'}
+            rel={external ? 'noopener noreferrer' : undefined}
+            className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
+          >{text}</a>
+        )
+      }
+    } else {
+      // Bare https:// URL
+      const url = match[3]
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300 break-all"
+        >{url}</a>
+      )
     }
-    const url = match[0]
-    parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300 break-all"
-      >
-        {url}
-      </a>
-    )
-    last = match.index + url.length
+    last = match.index + match[0].length
   }
-  if (last < content.length) {
-    parts.push(content.slice(last))
-  }
+  if (last < content.length) parts.push(content.slice(last))
 
   return <span className="whitespace-pre-wrap">{parts}</span>
 }
 
-export default function ChatButton() {
-  const [open, setOpen] = useState(false)
+// ── Capabilities drawer content ───────────────────────────────────────────────
+const CAPABILITIES = [
+  {
+    label: 'Answer questions',
+    color: 'text-indigo-500',
+    icon: '?',
+    items: [
+      "What's Clint's experience with Kubernetes?",
+      'What cloud platforms has he worked on?',
+      'Has he led any platform or infrastructure teams?',
+      'Does he have experience with AI or ML systems?',
+    ],
+  },
+  {
+    label: 'Job fit analysis',
+    color: 'text-amber-500',
+    icon: '⚡',
+    items: [
+      "Here's our JD for a Staff SA role — how well does he fit?",
+      "We're hiring for AI platform experience. Check the fit? [paste JD]",
+    ],
+  },
+  {
+    label: 'Schedule a meeting',
+    color: 'text-emerald-500',
+    icon: '→',
+    items: [
+      "I'd like to schedule a call to discuss a potential opportunity.",
+      "Can we set up time to talk about a consulting engagement?",
+    ],
+  },
+  {
+    label: 'Send a message',
+    color: 'text-violet-500',
+    icon: '✉',
+    items: [
+      "Can you pass along that I'm interested in an open role at our company?",
+      "I'd love to get Clint's take on our migration — can you send a note?",
+    ],
+  },
+]
+
+function CapabilitiesPanel() {
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+      <p className="text-xs text-slate-400 leading-relaxed">
+        {config.agent.assistantName} has full context on Clint&apos;s background and can take real actions on your behalf.
+      </p>
+      {CAPABILITIES.map((cap) => (
+        <div key={cap.label}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{cap.label}</p>
+          <div className="space-y-1.5">
+            {cap.items.map((item) => (
+              <div key={item} className="flex items-start gap-2 rounded-lg border border-slate-700/60 bg-slate-800/40 px-3 py-2">
+                <span className={`${cap.color} shrink-0 text-xs mt-px`}>{cap.icon}</span>
+                <span className="text-xs text-slate-300 leading-relaxed">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+type ChatButtonProps = {
+  apiPath?: string
+  capabilitiesUrl?: string
+}
+
+export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: ChatButtonProps) {
+  const greeting = capabilitiesUrl
+    ? `${config.agent.greeting}\n\n[See what I can do →](${capabilitiesUrl})`
+    : config.agent.greeting
+
+  const [open, setOpen]           = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: config.agent.greeting },
+    { role: 'assistant', content: greeting },
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -98,7 +200,7 @@ export default function ChatButton() {
         const buffer = await file.arrayBuffer()
         const content = btoa(String.fromCharCode(...new Uint8Array(buffer)))
         const fileType = name.endsWith('.docx') ? 'docx' : 'pdf'
-        const res = await fetch('/api/chat/extract', {
+        const res = await fetch(`${apiPath}/extract`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content, fileType }),
@@ -149,7 +251,7 @@ export default function ChatButton() {
       const apiMessages = newMessages.map((m, i) =>
         i === newMessages.length - 1 ? { role: m.role, content } : { role: m.role, content: m.content }
       )
-      const res = await fetch('/api/chat', {
+      const res = await fetch(apiPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages }),
@@ -241,9 +343,21 @@ export default function ChatButton() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/60 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              {drawerOpen ? (
+                <button
+                  onClick={() => setDrawerOpen(false)}
+                  className="text-slate-400 hover:text-white transition-colors mr-1"
+                  aria-label="Back to chat"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
               <span className="text-sm font-medium text-white">
-                {config.agent.assistantName}
+                {drawerOpen ? `What can I do?` : config.agent.assistantName}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -264,7 +378,7 @@ export default function ChatButton() {
                 </div>
               )}
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => { setOpen(false); setDrawerOpen(false) }}
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Close chat"
               >
@@ -285,6 +399,15 @@ export default function ChatButton() {
             </div>
           </div>
 
+          {/* Sliding panel container */}
+          <div className="flex-1 relative overflow-hidden">
+            <div
+              className="absolute inset-0 flex transition-transform duration-300 ease-in-out"
+              style={{ width: '200%', transform: drawerOpen ? 'translateX(-50%)' : 'translateX(0)' }}
+            >
+              {/* ── Left panel: chat ── */}
+              <div className="flex flex-col overflow-hidden" style={{ width: '50%' }}>
+
           {/* Sign-in gate */}
           {!session?.user ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4 text-center">
@@ -304,6 +427,12 @@ export default function ChatButton() {
                 <LinkedInIcon className="w-4 h-4" />
                 Sign in with LinkedIn
               </button>
+              <p className="text-xs text-slate-600 max-w-[220px]">
+                We only use your name and email to identify you.{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-400 transition-colors">
+                  Privacy policy
+                </a>
+              </p>
             </div>
           ) : (
             <>
@@ -325,7 +454,7 @@ export default function ChatButton() {
                     <div className="text-xs text-indigo-400 mb-1.5 italic">{msg.toolStatus}</div>
                   )}
                   {msg.content ? (
-                    <MessageContent content={msg.content} />
+                    <MessageContent content={msg.content} onCapabilitiesOpen={() => setDrawerOpen(true)} />
                   ) : (
                     <span className="inline-flex items-center gap-1 py-0.5">
                       <span
@@ -420,9 +549,18 @@ export default function ChatButton() {
               </div>
               <p className="text-xs text-slate-600 mt-1.5">Shift+Enter for new line · attach .txt .pdf .docx</p>
             </div>
-          </div>
+              </div>
             </>
           )}
+              </div>{/* end left panel */}
+
+              {/* ── Right panel: capabilities ── */}
+              <div className="flex flex-col overflow-hidden border-l border-slate-700/50" style={{ width: '50%' }}>
+                <CapabilitiesPanel />
+              </div>
+
+            </div>{/* end sliding container */}
+          </div>{/* end relative wrapper */}
         </div>
       )}
 

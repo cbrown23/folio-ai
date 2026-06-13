@@ -10,7 +10,7 @@ export const studioTools: Anthropic.Tool[] = [
       properties: {
         type: {
           type: 'string',
-          enum: ['case-study', 'journal', 'bio', 'resume'],
+          enum: ['case-study', 'architecture', 'journal', 'bio', 'resume', 'adr'],
           description: 'Content type',
         },
         title: {
@@ -28,6 +28,38 @@ export const studioTools: Anthropic.Tool[] = [
         },
       },
       required: ['type', 'title', 'slug', 'content'],
+    },
+  },
+  {
+    name: 'save_diagram',
+    description:
+      'Save a Mermaid diagram to the portfolio. The diagram source is stored as a document and can be embedded in case studies or ADRs. Only call this once the user has reviewed and approved the diagram in the chat.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Short descriptive title, e.g. "CI/CD Pipeline Architecture"',
+        },
+        slug: {
+          type: 'string',
+          description: 'URL-safe filename without extension, e.g. "cicd-pipeline"',
+        },
+        diagram_type: {
+          type: 'string',
+          enum: ['flowchart', 'sequence', 'er', 'class', 'state', 'gantt', 'graph', 'other'],
+          description: 'Mermaid diagram type',
+        },
+        mermaid_source: {
+          type: 'string',
+          description: 'The complete Mermaid diagram source code (without the ``` fences)',
+        },
+        description: {
+          type: 'string',
+          description: 'One or two sentences describing what the diagram shows — used for semantic search',
+        },
+      },
+      required: ['title', 'slug', 'diagram_type', 'mermaid_source'],
     },
   },
   {
@@ -157,6 +189,31 @@ export const studioTools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'list_compositions',
+    description:
+      'List all compositions along with their member documents and nested composition references. Use this to show the owner what compositions exist and what is in each one before deciding to publish or modify. Compositions can include documents and/or other compositions.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'publish_composition',
+    description:
+      'Publish or republish a composition by compiling all its source documents and nested compositions into a single polished Markdown page using AI. Use this when the owner asks to generate or regenerate a published page for a composition.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        composition_id: {
+          type: 'string',
+          description: 'The UUID of the composition to publish. Get this from list_compositions.',
+        },
+      },
+      required: ['composition_id'],
+    },
+  },
+  {
     name: 'list_content',
     description:
       'List documents in the portfolio vector database. Results include creation date and are ordered newest-first. Optionally filter by type or restrict to documents created on or after a given date.',
@@ -165,7 +222,7 @@ export const studioTools: Anthropic.Tool[] = [
       properties: {
         type: {
           type: 'string',
-          description: 'Filter by document type: bio, resume, case-study, journal, memory, job-req, connection',
+          description: 'Filter by document type: bio, resume, case-study, architecture, journal, memory, job-req, connection, diagram, adr',
         },
         since: {
           type: 'string',

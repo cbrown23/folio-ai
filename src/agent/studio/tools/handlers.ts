@@ -1,14 +1,16 @@
 import { sql } from '@/lib/db'
 import { ingestDocument } from '@/lib/ingest'
 import { retrieveRelevant, formatChunksForPrompt } from '@/lib/rag'
+import { getCompositions, getCompositionItems, seedCompositionsFromDocuments } from '@/lib/compositions'
+import { publishCompositionById } from '@/lib/publish-composition'
 
-type DocType = 'case-study' | 'journal' | 'bio' | 'resume' | 'memory'
+type DocType = 'case-study' | 'architecture' | 'journal' | 'bio' | 'resume' | 'memory' | 'adr' | 'diagram'
 
 export async function executeStudioTool(
   name: string,
   input: Record<string, unknown>,
+  ownerId: string,
 ): Promise<string> {
-  const ownerId = process.env.OWNER_ID ?? 'default'
 
   switch (name) {
     case 'save_content': {
@@ -18,11 +20,11 @@ export async function executeStudioTool(
       const content = input.content as string
 
       const relPath =
-        type === 'case-study'
-          ? `case-studies/${slug}.md`
-          : type === 'journal'
-            ? `journal/${slug}.md`
-            : `${type}.md`
+        type === 'case-study'   ? `case-studies/${slug}.md`
+        : type === 'architecture' ? `architecture/${slug}.md`
+        : type === 'journal'    ? `journal/${slug}.md`
+        : type === 'adr'        ? `adrs/${slug}.md`
+        : `${type}.md`
 
       const source = `content/${relPath}`
       const { chunks } = await ingestDocument(type, title, source, content, ownerId)
@@ -125,7 +127,6 @@ export async function executeStudioTool(
       // Concatenate chunks in insertion order (ASC) to reconstruct chunked docs
       const first = rows[0]
       const type = first.type as string
-      const title = first.title as string
       const createdAt = new Date(first.created_at as string).toLocaleDateString('en-US', {
         month: 'long', day: 'numeric', year: 'numeric',
       })
@@ -204,6 +205,37 @@ export async function executeStudioTool(
       return `"${result[0].title}" is now the baseline resume.`
     }
 
+    case 'list_compositions': {
+      await seedCompositionsFromDocuments(ownerId)
+      const compositions = await getCompositions(ownerId)
+      if (compositions.length === 0) return 'No compositions yet.'
+
+      const lines: string[] = []
+      for (const comp of compositions) {
+        const items = await getCompositionItems(comp.id)
+        const itemList = items.length > 0
+          ? items.map((it) => {
+              if (it.document_source) return `    - [${it.section_label || 'unlabeled'}] ${it.document_title} (${it.document_source})`
+              return `    - [${it.section_label || 'unlabeled'}] ↳ composition: ${it.ref_composition_title}`
+            }).join('\n')
+          : '    (no items yet)'
+        lines.push(
+          `**${comp.title}** (${comp.type}) — ID: ${comp.id}${comp.published ? ' ● published' : ''}\n${itemList}`,
+        )
+      }
+      return lines.join('\n\n')
+    }
+
+    case 'publish_composition': {
+      const compositionId = input.composition_id as string
+      try {
+        const { source } = await publishCompositionById(compositionId, ownerId)
+        return `Composition published successfully. The compiled document is now live at source: ${source}`
+      } catch (err) {
+        return `Publish failed: ${err instanceof Error ? err.message : String(err)}`
+      }
+    }
+
     case 'list_content': {
       const typeFilter = input.type as string | undefined
       const since = input.since as string | undefined
@@ -243,6 +275,33 @@ export async function executeStudioTool(
       return Object.entries(grouped)
         .map(([type, items]) => `**${type}**\n${items.join('\n')}`)
         .join('\n\n')
+    }
+
+    case 'save_diagram': {
+      const title = input.title as string
+      const slug = input.slug as string
+      const diagramType = input.diagram_type as string
+      const mermaidSource = input.mermaid_source as string
+      const description = input.description as string | undefined
+
+      const source = `diagrams/${slug}`
+      const content = [
+        `## ${title}`,
+        description ? `\n${description}` : '',
+        `\n\`\`\`mermaid\n${mermaidSource.trim()}\n\`\`\``,
+      ].filter(Boolean).join('\n')
+
+      const { chunks } = await ingestDocument(
+        'diagram',
+        title,
+        source,
+        content,
+        ownerId,
+        ownerId,
+        { diagram_type: diagramType },
+      )
+
+      return `Diagram "${title}" saved (source: ${source}, ${chunks} chunk${chunks !== 1 ? 's' : ''}). It can be referenced in case studies and ADRs.`
     }
 
     default:

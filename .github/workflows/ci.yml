@@ -31,6 +31,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          NEXTAUTH_SECRET: ci-build-placeholder
+          AUTH_LINKEDIN_ID: ci
+          AUTH_LINKEDIN_SECRET: ci
 
   preview:
     name: Deploy preview

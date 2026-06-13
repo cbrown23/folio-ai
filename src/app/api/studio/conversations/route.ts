@@ -1,13 +1,8 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
 import { sql } from '@/lib/db'
-import config from '../../../../../folio.config'
 
 export const dynamic = 'force-dynamic'
-
-function isOwner(email?: string | null) {
-  return !!email && email === (process.env.OWNER_EMAIL ?? config.owner.email)
-}
 
 async function ensureTable() {
   await sql`
@@ -24,13 +19,13 @@ async function ensureTable() {
 
 export async function GET() {
   const session = await auth()
-  if (!session?.user || !isOwner(session.user.email)) {
-    return Response.json({ error: 'forbidden' }, { status: 403 })
+  if (!session?.user?.id) {
+    return Response.json({ error: 'signin_required' }, { status: 401 })
   }
 
   await ensureTable()
 
-  const ownerId = process.env.OWNER_ID ?? 'default'
+  const ownerId = session.user.id
   const rows = await sql`
     SELECT id, title, created_at, updated_at
     FROM conversations
@@ -43,8 +38,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user || !isOwner(session.user.email)) {
-    return Response.json({ error: 'forbidden' }, { status: 403 })
+  if (!session?.user?.id) {
+    return Response.json({ error: 'signin_required' }, { status: 401 })
   }
 
   await ensureTable()
@@ -56,7 +51,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'invalid_json' }, { status: 400 })
   }
 
-  const ownerId = process.env.OWNER_ID ?? 'default'
+  const ownerId = session.user.id
   const { id, title, messages } = body
   const messagesJson = JSON.stringify(messages)
 

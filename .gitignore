@@ -3,6 +3,9 @@
 # generated assets
 /public/logo-*.png
 
+# personal content — lives in the database, not the repo
+/content
+
 # dependencies
 /node_modules
 /.pnp
