@@ -150,6 +150,11 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
   const [newType, setNewType]       = useState('architecture')
   const [createError, setCreateError] = useState('')
 
+  // Section editor
+  const [pendingSections, setPendingSections] = useState<string[]>([])
+  const [addingSection, setAddingSection]     = useState(false)
+  const [newSectionName, setNewSectionName]   = useState('')
+
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     setError(null)
@@ -179,6 +184,9 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     setDirty(false)
     setPublishError('')
     setPublishedSource('')
+    setPendingSections([])
+    setAddingSection(false)
+    setNewSectionName('')
     setItemsLoading(true)
     try {
       const res = await fetch(`/api/studio/compositions/${comp.id}/items`)
@@ -210,30 +218,31 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     if (selected?.id === id) setSelected(null)
   }
 
-  function addDocumentItem() {
+  function addDocumentItem(sectionLabel: string) {
     if (!selected) return
-    const newIdx = items.length
+    setPendingSections((prev) => prev.filter((l) => l !== sectionLabel))
     setItems((prev) => [...prev, {
       id: crypto.randomUUID(),
       document_source: '',
       ref_composition_id: null,
       ref_composition_title: null,
       document_title: '',
-      section_label: '',
-      position: newIdx,
+      section_label: sectionLabel,
+      position: prev.length,
     }])
     setDirty(true)
   }
 
-  function addCompositionItem() {
+  function addCompositionItem(sectionLabel: string) {
     if (!selected) return
+    setPendingSections((prev) => prev.filter((l) => l !== sectionLabel))
     setItems((prev) => [...prev, {
       id: crypto.randomUUID(),
       document_source: null,
       ref_composition_id: '',
       ref_composition_title: '',
       document_title: null,
-      section_label: '',
+      section_label: sectionLabel,
       position: prev.length,
     }])
     setDirty(true)
@@ -272,6 +281,65 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
     if (swap < 0 || swap >= next.length) return
     ;[next[idx], next[swap]] = [next[swap], next[idx]]
     setItems(next.map((it, i) => ({ ...it, position: i })))
+    setDirty(true)
+  }
+
+  function getSectionLabels(): string[] {
+    const seen = new Set<string>()
+    const order: string[] = []
+    for (const it of items) {
+      if (!seen.has(it.section_label)) { seen.add(it.section_label); order.push(it.section_label) }
+    }
+    for (const l of pendingSections) {
+      if (!seen.has(l)) order.push(l)
+    }
+    return order
+  }
+
+  function addSection(label: string) {
+    const trimmed = label.trim()
+    if (!trimmed) return
+    if (!getSectionLabels().includes(trimmed)) {
+      setPendingSections((prev) => [...prev, trimmed])
+      setDirty(true)
+    }
+    setNewSectionName('')
+    setAddingSection(false)
+  }
+
+  function renameSection(oldLabel: string, newLabel: string) {
+    setItems((prev) => prev.map((it) =>
+      it.section_label === oldLabel ? { ...it, section_label: newLabel } : it
+    ))
+    setPendingSections((prev) => prev.map((l) => l === oldLabel ? newLabel : l))
+    setDirty(true)
+  }
+
+  function deleteSection(label: string) {
+    setItems((prev) =>
+      prev.filter((it) => it.section_label !== label).map((it, i) => ({ ...it, position: i }))
+    )
+    setPendingSections((prev) => prev.filter((l) => l !== label))
+    setDirty(true)
+  }
+
+  function moveSectionDir(label: string, dir: -1 | 1) {
+    const order = getSectionLabels()
+    const idx = order.indexOf(label)
+    const swapIdx = idx + dir
+    if (swapIdx < 0 || swapIdx >= order.length) return
+    ;[order[idx], order[swapIdx]] = [order[swapIdx], order[idx]]
+    const grouped: Record<string, CompositionItem[]> = {}
+    for (const it of items) {
+      if (!grouped[it.section_label]) grouped[it.section_label] = []
+      grouped[it.section_label].push(it)
+    }
+    const newItems: CompositionItem[] = []
+    for (const l of order) {
+      if (grouped[l]) newItems.push(...grouped[l])
+    }
+    setItems(newItems.map((it, i) => ({ ...it, position: i })))
+    setPendingSections(order.filter((l) => !grouped[l]))
     setDirty(true)
   }
 
@@ -465,68 +533,124 @@ export default function CompositionsTab({ folioSlug }: { folioSlug?: string }) {
             {itemsLoading ? (
               <p className="text-xs text-zinc-500">Loading…</p>
             ) : (
-              <div className="space-y-3 max-w-2xl">
-                {items.map((item, idx) => (
-                  <div key={item.id} className="rounded-lg border border-zinc-700 bg-zinc-900/40 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col gap-0.5 shrink-0">
-                        <button onClick={() => moveItem(idx, -1)} disabled={idx === 0} className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 text-xs leading-none">▲</button>
-                        <button onClick={() => moveItem(idx, 1)} disabled={idx === items.length - 1} className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 text-xs leading-none">▼</button>
+              <div className="space-y-4 max-w-2xl">
+                {getSectionLabels().map((label, sectionIdx) => {
+                  const sectionLabels = getSectionLabels()
+                  const sectionItems = items
+                    .map((it, idx) => ({ it, idx }))
+                    .filter(({ it }) => it.section_label === label)
+                  return (
+                    <div key={label || `section-${sectionIdx}`} className="rounded-lg border border-zinc-700 bg-zinc-900/20 overflow-hidden">
+                      {/* Section header */}
+                      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900/50">
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button onClick={() => moveSectionDir(label, -1)} disabled={sectionIdx === 0} className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 text-[10px] leading-none">▲</button>
+                          <button onClick={() => moveSectionDir(label, 1)} disabled={sectionIdx === sectionLabels.length - 1} className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 text-[10px] leading-none">▼</button>
+                        </div>
+                        <input
+                          value={label}
+                          onChange={(e) => renameSection(label, e.target.value)}
+                          placeholder="Section name"
+                          className="flex-1 bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-indigo-500 px-1 py-0.5 text-xs font-semibold text-zinc-200 placeholder-zinc-600 focus:outline-none transition-colors"
+                        />
+                        <button onClick={() => deleteSection(label)} className="text-zinc-600 hover:text-red-400 text-xs transition-colors shrink-0" title="Delete section">✕</button>
                       </div>
-                      <input
-                        value={item.section_label}
-                        onChange={(e) => updateItem(idx, 'section_label', e.target.value)}
-                        placeholder="Section heading"
-                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      />
-                      <button onClick={() => removeItem(idx)} className="text-zinc-600 hover:text-red-400 text-xs transition-colors shrink-0">✕</button>
+
+                      {/* Items within this section */}
+                      {sectionItems.length > 0 && (
+                        <div className="divide-y divide-zinc-800/50">
+                          {sectionItems.map(({ it, idx }) => (
+                            <div key={it.id} className="flex items-center gap-2 px-4 py-3">
+                              <div className="flex flex-col gap-0.5 shrink-0">
+                                <button
+                                  onClick={() => moveItem(idx, -1)}
+                                  disabled={idx === 0 || items[idx - 1]?.section_label !== label}
+                                  className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 text-[10px] leading-none"
+                                >▲</button>
+                                <button
+                                  onClick={() => moveItem(idx, 1)}
+                                  disabled={idx === items.length - 1 || items[idx + 1]?.section_label !== label}
+                                  className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 text-[10px] leading-none"
+                                >▼</button>
+                              </div>
+                              <div className="flex-1">
+                                {it.ref_composition_id !== null ? (
+                                  <select
+                                    value={it.ref_composition_id ?? ''}
+                                    onChange={(e) => updateItem(idx, 'ref_composition_id', e.target.value)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  >
+                                    <option value="">— select a composition —</option>
+                                    {nonFolioCompositions.map((c) => (
+                                      <option key={c.id} value={c.id}>[{c.type}] {c.title}{c.published ? ' ●' : ''}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <select
+                                    value={it.document_source ?? ''}
+                                    onChange={(e) => updateItem(idx, 'document_source', e.target.value)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  >
+                                    <option value="">— select a document —</option>
+                                    {docs.map((d) => (
+                                      <option key={d.source} value={d.source}>[{d.type}] {d.title}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                              <button onClick={() => removeItem(idx)} className="text-zinc-600 hover:text-red-400 text-xs transition-colors shrink-0">✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Per-section add buttons */}
+                      <div className="flex gap-2 px-4 py-3 border-t border-zinc-800/50">
+                        <button
+                          onClick={() => addDocumentItem(label)}
+                          className="flex-1 text-xs py-1.5 rounded border border-dashed border-zinc-700 text-zinc-500 hover:border-indigo-600 hover:text-indigo-400 transition-colors"
+                        >+ Document</button>
+                        <button
+                          onClick={() => addCompositionItem(label)}
+                          className="flex-1 text-xs py-1.5 rounded border border-dashed border-zinc-700 text-zinc-500 hover:border-violet-600 hover:text-violet-400 transition-colors"
+                        >+ Composition</button>
+                      </div>
                     </div>
+                  )
+                })}
 
-                    {item.ref_composition_id !== null ? (
-                      <select
-                        value={item.ref_composition_id ?? ''}
-                        onChange={(e) => updateItem(idx, 'ref_composition_id', e.target.value)}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      >
-                        <option value="">— select a composition —</option>
-                        {nonFolioCompositions.map((c) => (
-                          <option key={c.id} value={c.id}>[{c.type}] {c.title}{c.published ? ' ●' : ''}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <select
-                        value={item.document_source ?? ''}
-                        onChange={(e) => updateItem(idx, 'document_source', e.target.value)}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      >
-                        <option value="">— select a document —</option>
-                        {docs.map((d) => (
-                          <option key={d.source} value={d.source}>[{d.type}] {d.title}</option>
-                        ))}
-                      </select>
-                    )}
+                {/* Add Section */}
+                {addingSection ? (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      value={newSectionName}
+                      onChange={(e) => setNewSectionName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') addSection(newSectionName)
+                        if (e.key === 'Escape') { setAddingSection(false); setNewSectionName('') }
+                      }}
+                      placeholder="Section name"
+                      className="flex-1 bg-zinc-800 border border-zinc-600 rounded px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <button onClick={() => addSection(newSectionName)} className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors">Add</button>
+                    <button onClick={() => { setAddingSection(false); setNewSectionName('') }} className="text-xs px-3 py-1.5 border border-zinc-600 text-zinc-400 rounded hover:text-white transition-colors">Cancel</button>
                   </div>
-                ))}
-
-                <div className="flex gap-2">
+                ) : (
                   <button
-                    onClick={addDocumentItem}
-                    className="flex-1 text-xs py-2 rounded-lg border border-dashed border-zinc-700 text-zinc-500 hover:border-indigo-600 hover:text-indigo-400 transition-colors"
-                  >+ Add document</button>
-                  <button
-                    onClick={addCompositionItem}
-                    className="flex-1 text-xs py-2 rounded-lg border border-dashed border-zinc-700 text-zinc-500 hover:border-violet-600 hover:text-violet-400 transition-colors"
-                  >+ Add composition</button>
-                </div>
+                    onClick={() => setAddingSection(true)}
+                    className="w-full text-xs py-2.5 rounded-lg border border-dashed border-zinc-700 text-zinc-500 hover:border-indigo-600 hover:text-indigo-400 transition-colors"
+                  >+ Add Section</button>
+                )}
 
                 {items.length > 0 && selected.type !== 'folio' && (
-                  <p className="text-xs text-zinc-600 pt-2">
+                  <p className="text-xs text-zinc-600 pt-1">
                     Publishing compiles these sources into a single page via AI. Nested compositions embed their compiled content.
                   </p>
                 )}
                 {selected.type === 'folio' && (
-                  <p className="text-xs text-zinc-600 pt-2">
-                    The folio page will show these compositions (in this order) when published. Publishing refreshes your public folio page.
+                  <p className="text-xs text-zinc-600 pt-1">
+                    The folio page will show these sections when published. Click &quot;Apply to folio&quot; to refresh your public folio page.
                   </p>
                 )}
               </div>
