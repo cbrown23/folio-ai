@@ -15,8 +15,12 @@ type Message = {
 
 // Matches [text](url) markdown links OR bare https:// URLs
 const LINK_REGEX = /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)|(https?:\/\/[^\s)>\]"*]+)/g
+const CAPABILITIES_PATH = '/folio-ai/assistant'
 
-function MessageContent({ content }: { content: string }) {
+function MessageContent({ content, onCapabilitiesOpen }: {
+  content: string
+  onCapabilitiesOpen?: () => void
+}) {
   const parts: React.ReactNode[] = []
   let last = 0
   let match: RegExpExecArray | null
@@ -29,16 +33,27 @@ function MessageContent({ content }: { content: string }) {
       // Markdown link: [text](url)
       const text = match[1]
       const url  = match[2]
-      const external = url.startsWith('http')
-      parts.push(
-        <a
-          key={match.index}
-          href={url}
-          target={external ? '_blank' : '_self'}
-          rel={external ? 'noopener noreferrer' : undefined}
-          className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
-        >{text}</a>
-      )
+      // Intercept capabilities link — open drawer instead of navigating
+      if (onCapabilitiesOpen && url === CAPABILITIES_PATH) {
+        parts.push(
+          <button
+            key={match.index}
+            onClick={onCapabilitiesOpen}
+            className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
+          >{text}</button>
+        )
+      } else {
+        const external = url.startsWith('http')
+        parts.push(
+          <a
+            key={match.index}
+            href={url}
+            target={external ? '_blank' : '_self'}
+            rel={external ? 'noopener noreferrer' : undefined}
+            className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
+          >{text}</a>
+        )
+      }
     } else {
       // Bare https:// URL
       const url = match[3]
@@ -59,6 +74,73 @@ function MessageContent({ content }: { content: string }) {
   return <span className="whitespace-pre-wrap">{parts}</span>
 }
 
+// ── Capabilities drawer content ───────────────────────────────────────────────
+const OWNER = config.owner.name
+
+const CAPABILITIES = [
+  {
+    label: 'Answer questions',
+    color: 'text-indigo-500',
+    icon: '?',
+    items: [
+      `What's ${OWNER}'s experience with Kubernetes?`,
+      'What cloud platforms has he worked on?',
+      'Has he led any platform or infrastructure teams?',
+      'Does he have experience with AI or ML systems?',
+    ],
+  },
+  {
+    label: 'Schedule a meeting',
+    color: 'text-emerald-500',
+    icon: '→',
+    items: [
+      "I'd like to schedule a call to discuss a potential opportunity.",
+      "Can we set up time to talk about a consulting engagement?",
+    ],
+  },
+  {
+    label: 'Send a message',
+    color: 'text-violet-500',
+    icon: '✉',
+    items: [
+      "Can you pass along that I'm interested in an open role at our company?",
+      `I'd love to get ${OWNER}'s take on our migration — can you send a note?`,
+    ],
+  },
+  {
+    label: 'Job fit analysis',
+    color: 'text-amber-500',
+    icon: '⚡',
+    items: [
+      "Here's our JD for a Staff SA role — how well does he fit?",
+      "We're hiring for AI platform experience. Check the fit? [paste JD]",
+    ],
+  },
+]
+
+function CapabilitiesPanel() {
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+      <p className="text-xs text-slate-400 leading-relaxed">
+        {config.agent.assistantName} has full context on {OWNER}&apos;s background and can take real actions on your behalf.
+      </p>
+      {CAPABILITIES.map((cap) => (
+        <div key={cap.label}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{cap.label}</p>
+          <div className="space-y-1.5">
+            {cap.items.map((item) => (
+              <div key={item} className="flex items-start gap-2 rounded-lg border border-slate-700/60 bg-slate-800/40 px-3 py-2">
+                <span className={`${cap.color} shrink-0 text-xs mt-px`}>{cap.icon}</span>
+                <span className="text-xs text-slate-300 leading-relaxed">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type ChatButtonProps = {
   apiPath?: string
   capabilitiesUrl?: string
@@ -69,7 +151,8 @@ export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: C
     ? `${config.agent.greeting}\n\n[See what I can do →](${capabilitiesUrl})`
     : config.agent.greeting
 
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]           = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: greeting },
   ])
@@ -263,9 +346,21 @@ export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: C
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/60 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              {drawerOpen ? (
+                <button
+                  onClick={() => setDrawerOpen(false)}
+                  className="text-slate-400 hover:text-white transition-colors mr-1"
+                  aria-label="Back to chat"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
               <span className="text-sm font-medium text-white">
-                {config.agent.assistantName}
+                {drawerOpen ? `What can I do?` : config.agent.assistantName}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -286,7 +381,7 @@ export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: C
                 </div>
               )}
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => { setOpen(false); setDrawerOpen(false) }}
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Close chat"
               >
@@ -306,6 +401,15 @@ export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: C
               </button>
             </div>
           </div>
+
+          {/* Sliding panel container */}
+          <div className="flex-1 relative overflow-hidden">
+            <div
+              className="absolute inset-0 flex transition-transform duration-300 ease-in-out"
+              style={{ width: '200%', transform: drawerOpen ? 'translateX(-50%)' : 'translateX(0)' }}
+            >
+              {/* ── Left panel: chat ── */}
+              <div className="flex flex-col overflow-hidden" style={{ width: '50%' }}>
 
           {/* Sign-in gate */}
           {!session?.user ? (
@@ -353,7 +457,7 @@ export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: C
                     <div className="text-xs text-indigo-400 mb-1.5 italic">{msg.toolStatus}</div>
                   )}
                   {msg.content ? (
-                    <MessageContent content={msg.content} />
+                    <MessageContent content={msg.content} onCapabilitiesOpen={() => setDrawerOpen(true)} />
                   ) : (
                     <span className="inline-flex items-center gap-1 py-0.5">
                       <span
@@ -448,9 +552,18 @@ export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: C
               </div>
               <p className="text-xs text-slate-600 mt-1.5">Shift+Enter for new line · attach .txt .pdf .docx</p>
             </div>
-          </div>
+              </div>
             </>
           )}
+              </div>{/* end left panel */}
+
+              {/* ── Right panel: capabilities ── */}
+              <div className="flex flex-col overflow-hidden border-l border-slate-700/50" style={{ width: '50%' }}>
+                <CapabilitiesPanel />
+              </div>
+
+            </div>{/* end sliding container */}
+          </div>{/* end relative wrapper */}
         </div>
       )}
 
