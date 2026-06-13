@@ -128,7 +128,7 @@ const STUDIO_CAPABILITIES = [
   },
 ]
 
-function StudioCapabilitiesPanel({ onClose }: { onClose: () => void }) {
+function StudioCapabilitiesPanel() {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
       <div>
@@ -181,9 +181,13 @@ export default function StudioChat({ restoredConversation, onNewConversation, on
       role: m.role,
       content: m.content,
     }))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages(restored.length > 0 ? restored : [{ id: 'greeting', role: 'assistant', content: GREETING }])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConversationId(restoredConversation.id)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConversationTitle(restoredConversation.title)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditingTitle(false)
   }, [restoredConversation])
 
@@ -514,7 +518,7 @@ export default function StudioChat({ restoredConversation, onNewConversation, on
 
           {/* Right panel — capabilities */}
           <div className="overflow-y-auto border-l border-zinc-800" style={{ width: '50%' }}>
-            <StudioCapabilitiesPanel onClose={() => setDrawerOpen(false)} />
+            <StudioCapabilitiesPanel />
           </div>
         </div>
       </div>

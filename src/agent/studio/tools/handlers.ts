@@ -127,7 +127,6 @@ export async function executeStudioTool(
       // Concatenate chunks in insertion order (ASC) to reconstruct chunked docs
       const first = rows[0]
       const type = first.type as string
-      const title = first.title as string
       const createdAt = new Date(first.created_at as string).toLocaleDateString('en-US', {
         month: 'long', day: 'numeric', year: 'numeric',
       })

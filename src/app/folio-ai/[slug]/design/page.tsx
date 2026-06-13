@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
 import { auth } from '@/auth'
 import { getFolioBySlug, getTokenBalance } from '@/lib/folios'
 import StudioTabs from '@/components/StudioTabs'
@@ -41,9 +42,9 @@ export default async function FolioDesignPage({
             View folio
           </a>
           <span>·</span>
-          <a href="/" className="hover:text-zinc-300 transition-colors">
+          <Link href="/" className="hover:text-zinc-300 transition-colors">
             Home
-          </a>
+          </Link>
         </div>
       </header>
 

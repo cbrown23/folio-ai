@@ -13,19 +13,18 @@ type Message = {
   toolStatus?: string | null
 }
 
-// Matches [text](url) markdown links OR bare https:// URLs
-const LINK_REGEX = /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)|(https?:\/\/[^\s)>\]"*]+)/g
 const CAPABILITIES_PATH = '/folio-ai/assistant'
 
 function MessageContent({ content, onCapabilitiesOpen }: {
   content: string
   onCapabilitiesOpen?: () => void
 }) {
+  // Matches [text](url) markdown links OR bare https:// URLs — new instance per render avoids lastIndex mutation
+  const LINK_REGEX = /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)|(https?:\/\/[^\s)>\]"*]+)/g
   const parts: React.ReactNode[] = []
   let last = 0
   let match: RegExpExecArray | null
 
-  LINK_REGEX.lastIndex = 0
   while ((match = LINK_REGEX.exec(content)) !== null) {
     if (match.index > last) parts.push(content.slice(last, match.index))
 
