@@ -26,6 +26,7 @@ const config = {
   agent: {
     assistantName: process.env.AGENT_NAME     ?? 'Portfolio Assistant',
     greeting:      process.env.AGENT_GREETING ?? "Hi — I can answer questions about this portfolio, or help you schedule time.",
+    folioSlug:     process.env.FOLIO_SLUG     ?? '',
   },
 
   scheduling: {

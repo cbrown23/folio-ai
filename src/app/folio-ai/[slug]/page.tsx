@@ -418,7 +418,10 @@ export default async function FolioPage({ params }: { params: Promise<{ slug: st
         </div>
       </section>
 
-      <ChatButton apiPath={`/api/folio-ai/${slug}/chat`} />
+      <ChatButton
+        apiPath={`/api/folio-ai/${slug}/chat`}
+        capabilitiesUrl={`/folio-ai/${slug}/assistant`}
+      />
     </div>
   )
 }

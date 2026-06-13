@@ -48,12 +48,17 @@ function MessageContent({ content }: { content: string }) {
 
 type ChatButtonProps = {
   apiPath?: string
+  capabilitiesUrl?: string
 }
 
-export default function ChatButton({ apiPath = '/api/chat' }: ChatButtonProps) {
+export default function ChatButton({ apiPath = '/api/chat', capabilitiesUrl }: ChatButtonProps) {
+  const greeting = capabilitiesUrl
+    ? `${config.agent.greeting}\n\nSee everything I can do: ${capabilitiesUrl}`
+    : config.agent.greeting
+
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: config.agent.greeting },
+    { role: 'assistant', content: greeting },
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
