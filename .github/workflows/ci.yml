@@ -32,7 +32,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: postgresql://localhost/ci_placeholder
           NEXTAUTH_SECRET: ci-build-placeholder
           AUTH_LINKEDIN_ID: ci
           AUTH_LINKEDIN_SECRET: ci

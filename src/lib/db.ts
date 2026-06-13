@@ -1,12 +1,20 @@
 import { neon } from '@neondatabase/serverless'
 
-const url = process.env.DATABASE_URL
+let _client: ReturnType<typeof neon> | null = null
 
-// Skip the early check during `next build` — routes are statically evaluated
-// without runtime env vars. Any actual query with the placeholder URL will
-// fail at runtime, which is the correct behavior.
-if (!url && process.env.NEXT_PHASE !== 'phase-production-build') {
-  throw new Error('DATABASE_URL is not set')
+function getClient() {
+  if (!_client) {
+    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
+    _client = neon(process.env.DATABASE_URL)
+  }
+  return _client
 }
 
-export const sql = neon(url ?? 'postgresql://localhost/placeholder')
+// Tagged template literal wrapper — neon() is never called at module
+// evaluation time, only on the first actual query. This lets Next.js
+// statically evaluate API routes during `next build` without DATABASE_URL.
+export const sql = (
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<Record<string, unknown>[]> =>
+  getClient()(strings, ...values) as Promise<Record<string, unknown>[]>
