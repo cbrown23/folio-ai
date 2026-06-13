@@ -31,6 +31,11 @@ const TYPE_COLORS: Record<string, string> = {
   'folio':        'bg-indigo-900/50 text-indigo-300 border-indigo-700/50',
 }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: 'asc' | 'desc' }) {
+  if (sortField !== field) return <span className="ml-1 text-zinc-700">↕</span>
+  return <span className="ml-1 text-indigo-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+}
+
 function TypeBadge({ type }: { type: string }) {
   const colors = TYPE_COLORS[type] ?? 'bg-zinc-800 text-zinc-400 border-zinc-700'
   return (
@@ -80,6 +85,7 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
     }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchDocs() }, [fetchDocs])
 
   async function handleUpload() {
@@ -226,11 +232,6 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
     if (sortField === 'created_at') cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     return sortDir === 'asc' ? cmp : -cmp
   })
-
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <span className="ml-1 text-zinc-700">↕</span>
-    return <span className="ml-1 text-indigo-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
-  }
 
   const uploadForm = showUpload && (
     <div className="border-b border-zinc-700 bg-zinc-800/60 px-4 py-4">
@@ -381,18 +382,18 @@ export default function DocumentsTable({ folioSlug }: { folioSlug?: string }) {
             <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-700 text-xs text-zinc-400 uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('type')}>
-                  Type<SortIcon field="type" />
+                  Type<SortIcon field="type" sortField={sortField} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('title')}>
-                  Title<SortIcon field="title" />
+                  Title<SortIcon field="title" sortField={sortField} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 font-medium">Source</th>
                 <th className="px-4 py-3 font-medium text-center cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('chunk_count')}>
-                  Chunks<SortIcon field="chunk_count" />
+                  Chunks<SortIcon field="chunk_count" sortField={sortField} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 font-medium text-center">Baseline</th>
                 <th className="px-4 py-3 font-medium cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort('created_at')}>
-                  Added<SortIcon field="created_at" />
+                  Added<SortIcon field="created_at" sortField={sortField} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>

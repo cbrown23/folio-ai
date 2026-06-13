@@ -183,11 +183,8 @@ export default function StudioChat({ restoredConversation, onNewConversation, on
     }))
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages(restored.length > 0 ? restored : [{ id: 'greeting', role: 'assistant', content: GREETING }])
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConversationId(restoredConversation.id)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConversationTitle(restoredConversation.title)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditingTitle(false)
   }, [restoredConversation])
 
