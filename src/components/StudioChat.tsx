@@ -81,6 +81,80 @@ type Props = {
   initialBalance?: TokenBalance | null
 }
 
+// ── Studio capabilities panel ─────────────────────────────────────────────────
+const STUDIO_CAPABILITIES = [
+  {
+    label: 'Draft content',
+    color: 'text-indigo-400',
+    icon: '✍',
+    items: [
+      'Walk me through the Kubernetes platform migration I led — make it a case study.',
+      "I want to document the multi-tenant architecture I designed. Let's write it up.",
+      'Help me write a bio for my folio.',
+      "I have a take on platform engineering vs DevOps — let's write a journal entry.",
+      'Draft an ADR for the decision to use pgvector over Pinecone.',
+    ],
+  },
+  {
+    label: 'Create diagrams',
+    color: 'text-violet-400',
+    icon: '◈',
+    items: [
+      'Draw a sequence diagram for the ReAct agent loop in this site.',
+      'Create a Mermaid flowchart for my CI/CD pipeline.',
+      'Diagram the multi-cluster Kubernetes architecture we use.',
+    ],
+  },
+  {
+    label: 'Connections & memories',
+    color: 'text-emerald-400',
+    icon: '◉',
+    items: [
+      'Add a connection profile for Sarah at Acme — she may visit the site.',
+      'Save a memory about the platform rebuild with Jordan in 2022.',
+      "Look up what I've saved about Marcus.",
+    ],
+  },
+  {
+    label: 'Search & manage',
+    color: 'text-amber-400',
+    icon: '⌕',
+    items: [
+      'What case studies do I have saved?',
+      'Search for anything I\'ve written about cost optimization.',
+      'Show me the resume I uploaded last week.',
+      'List all my compositions and what\'s published.',
+    ],
+  },
+]
+
+function StudioCapabilitiesPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
+      <div>
+        <p className="text-sm text-zinc-300 font-medium mb-1">Your studio assistant</p>
+        <p className="text-xs text-zinc-500 leading-relaxed">
+          A full ReAct agent with tools to write, save, search, and publish your portfolio content.
+          Everything it creates goes straight into your vector database.
+        </p>
+      </div>
+      {STUDIO_CAPABILITIES.map((cap) => (
+        <div key={cap.label}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">{cap.label}</p>
+          <div className="space-y-1.5">
+            {cap.items.map((item) => (
+              <div key={item} className="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5">
+                <span className={`${cap.color} shrink-0 text-xs mt-px`}>{cap.icon}</span>
+                <span className="text-xs text-zinc-400 leading-relaxed">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function StudioChat({ restoredConversation, onNewConversation, onRename, initialBalance }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'greeting', role: 'assistant', content: GREETING },
@@ -91,6 +165,7 @@ export default function StudioChat({ restoredConversation, onNewConversation, on
   const [titleDraft, setTitleDraft] = useState('')
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
   const [uploadMessage, setUploadMessage] = useState('')
   const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(initialBalance ?? null)
@@ -386,6 +461,16 @@ export default function StudioChat({ restoredConversation, onNewConversation, on
             </div>
           )}
           <button
+            onClick={() => setDrawerOpen((d) => !d)}
+            className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+              drawerOpen
+                ? 'border-indigo-500 text-indigo-400 bg-indigo-950/30'
+                : 'border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400'
+            }`}
+          >
+            {drawerOpen ? '← Chat' : 'What can I do?'}
+          </button>
+          <button
             onClick={startNewConversation}
             className="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
           >
@@ -394,31 +479,44 @@ export default function StudioChat({ restoredConversation, onNewConversation, on
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-3xl rounded-lg px-4 py-3 text-sm leading-relaxed font-mono ${
-                msg.role === 'user'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-zinc-800 text-zinc-100 border border-zinc-700'
-              }`}
-            >
-              {msg.toolStatus && (
-                <div className="text-xs text-indigo-400 mb-2 italic">{msg.toolStatus}</div>
-              )}
-              {msg.content
-                ? <MessageBody content={msg.content} />
-                : <span className="text-zinc-500 italic">{msg.toolStatus ? '' : 'Thinking…'}</span>
-              }
-            </div>
+      {/* Messages / capabilities sliding panel */}
+      <div className="flex-1 relative overflow-hidden">
+        <div
+          className="absolute inset-0 flex transition-transform duration-300 ease-in-out"
+          style={{ width: '200%', transform: drawerOpen ? 'translateX(-50%)' : 'translateX(0)' }}
+        >
+          {/* Left panel — messages */}
+          <div className="overflow-y-auto px-4 py-6 space-y-6" style={{ width: '50%' }}>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-3xl rounded-lg px-4 py-3 text-sm leading-relaxed font-mono ${
+                    msg.role === 'user'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-zinc-800 text-zinc-100 border border-zinc-700'
+                  }`}
+                >
+                  {msg.toolStatus && (
+                    <div className="text-xs text-indigo-400 mb-2 italic">{msg.toolStatus}</div>
+                  )}
+                  {msg.content
+                    ? <MessageBody content={msg.content} />
+                    : <span className="text-zinc-500 italic">{msg.toolStatus ? '' : 'Thinking…'}</span>
+                  }
+                </div>
+              </div>
+            ))}
+            <div ref={bottomRef} />
           </div>
-        ))}
-        <div ref={bottomRef} />
+
+          {/* Right panel — capabilities */}
+          <div className="overflow-y-auto border-l border-zinc-800" style={{ width: '50%' }}>
+            <StudioCapabilitiesPanel onClose={() => setDrawerOpen(false)} />
+          </div>
+        </div>
       </div>
 
       {/* Baseline resume upload */}
