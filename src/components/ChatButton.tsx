@@ -75,15 +75,13 @@ function MessageContent({ content, onCapabilitiesOpen }: {
 }
 
 // ── Capabilities drawer content ───────────────────────────────────────────────
-const OWNER = config.owner.name
-
 const CAPABILITIES = [
   {
     label: 'Answer questions',
     color: 'text-indigo-500',
     icon: '?',
     items: [
-      `What's ${OWNER}'s experience with Kubernetes?`,
+      "What's Clint's experience with Kubernetes?",
       'What cloud platforms has he worked on?',
       'Has he led any platform or infrastructure teams?',
       'Does he have experience with AI or ML systems?',
@@ -104,7 +102,7 @@ const CAPABILITIES = [
     icon: '✉',
     items: [
       "Can you pass along that I'm interested in an open role at our company?",
-      `I'd love to get ${OWNER}'s take on our migration — can you send a note?`,
+      "I'd love to get Clint's take on our migration — can you send a note?",
     ],
   },
   {
@@ -122,7 +120,7 @@ function CapabilitiesPanel() {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
       <p className="text-xs text-slate-400 leading-relaxed">
-        {config.agent.assistantName} has full context on {OWNER}&apos;s background and can take real actions on your behalf.
+        {config.agent.assistantName} has full context on Clint&apos;s background and can take real actions on your behalf.
       </p>
       {CAPABILITIES.map((cap) => (
         <div key={cap.label}>
