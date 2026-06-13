@@ -88,6 +88,15 @@ const CAPABILITIES = [
     ],
   },
   {
+    label: 'Job fit analysis',
+    color: 'text-amber-500',
+    icon: '⚡',
+    items: [
+      "Here's our JD for a Staff SA role — how well does he fit?",
+      "We're hiring for AI platform experience. Check the fit? [paste JD]",
+    ],
+  },
+  {
     label: 'Schedule a meeting',
     color: 'text-emerald-500',
     icon: '→',
@@ -103,15 +112,6 @@ const CAPABILITIES = [
     items: [
       "Can you pass along that I'm interested in an open role at our company?",
       "I'd love to get Clint's take on our migration — can you send a note?",
-    ],
-  },
-  {
-    label: 'Job fit analysis',
-    color: 'text-amber-500',
-    icon: '⚡',
-    items: [
-      "Here's our JD for a Staff SA role — how well does he fit?",
-      "We're hiring for AI platform experience. Check the fit? [paste JD]",
     ],
   },
 ]
